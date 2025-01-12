@@ -1,18 +1,20 @@
-const mongoose = require('mongoose');
+import { Schema, model } from 'mongoose';
 
-const rentalSchema = new mongoose.Schema({
-  cycleId: {
-    type: mongoose.Schema.Types.ObjectId,
+const rentalSchema = new Schema({
+  cycle: {
+    type: Schema.Types.ObjectId,
     ref: 'Cycle',
     required: true
   },
-  renterUID: {
-    type: String,
-    required: true
+  renter: {
+    type: String,  // Firebase UID of renter
+    required: true,
+    ref: 'User'
   },
-  ownerUID: {
-    type: String,
-    required: true
+  owner: {
+    type: String,  // Firebase UID of owner
+    required: true,
+    ref: 'User'
   },
   startTime: {
     type: Date,
@@ -23,7 +25,7 @@ const rentalSchema = new mongoose.Schema({
     required: true
   },
   duration: {
-    type: Number, // in hours
+    type: Number,  // in hours
     required: true
   },
   totalCost: {
@@ -32,22 +34,34 @@ const rentalSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'active', 'completed', 'cancelled'],
-    default: 'pending'
-  },
-  paymentStatus: {
-    type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded'],
-    default: 'pending'
+    enum: ['active', 'completed', 'cancelled'],
+    default: 'active'
   },
   rating: {
     type: Number,
     min: 1,
     max: 5
   },
-  review: String
-}, {
-  timestamps: true
+  review: {
+    type: String,
+    trim: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-module.exports = mongoose.model('Rental', rentalSchema); 
+// Update timestamp on save
+rentalSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
+
+const Rental = model('Rental', rentalSchema);
+
+export default Rental; 

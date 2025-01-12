@@ -1,26 +1,50 @@
-const admin = require('firebase-admin');
-
-// Initialize Firebase Admin with your service account
-const serviceAccount = require('../config/cyclex-e0009-firebase-adminsdk-mn53w-9275c684a9.json');
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+import admin from '../config/firebase.js';
 
 const authMiddleware = async (req, res, next) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ message: 'No token provided' });
-        }
-        
-        const token = authHeader.split('Bearer ')[1];
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        req.user = decodedToken;
-        next();
-    } catch (error) {
-        console.error('Auth Middleware Error:', error);
-        res.status(401).json({ message: 'Invalid token' });
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+      return res.status(401).json({
+        message: 'No authorization header',
+        error: 'UNAUTHORIZED'
+      });
     }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        message: 'Invalid authorization format',
+        error: 'UNAUTHORIZED'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({
+        message: 'No token provided',
+        error: 'UNAUTHORIZED'
+      });
+    }
+
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = decodedToken;
+      next();
+    } catch (firebaseError) {
+      console.error('Firebase auth error:', firebaseError);
+      return res.status(401).json({
+        message: 'Invalid or expired token',
+        error: 'UNAUTHORIZED'
+      });
+    }
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return res.status(500).json({
+      message: 'Authentication error',
+      error: 'AUTH_ERROR'
+    });
+  }
 };
 
-module.exports = authMiddleware; 
+export default authMiddleware; 

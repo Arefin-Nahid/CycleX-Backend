@@ -1,7 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const User = require('../models/user');
-const authMiddleware = require('../middleware/authMiddleware');
+import { Router } from 'express';
+const router = Router();
+import User from '../models/User.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 // Create/Update user profile
 // authMiddleware removed -- later seee if error
@@ -136,4 +136,4 @@ router.post('/update-role', authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

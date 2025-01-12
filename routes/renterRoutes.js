@@ -1,8 +1,16 @@
-const router = require('express').Router();
-const renterController = require('../controllers/renterController');
-const authMiddleware = require('../middleware/authMiddleware');
+import { Router } from 'express';
+import { getDashboardStats, createRental } from '../controllers/renterController.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
-router.get('/dashboard-stats', authMiddleware, renterController.getDashboardStats);
-router.post('/rentals', authMiddleware, renterController.createRental);
+const router = Router();
 
-module.exports = router; 
+// All routes should use authMiddleware
+router.use(authMiddleware);
+
+// Get dashboard statistics
+router.get('/dashboard', getDashboardStats);
+
+// Create a new rental
+router.post('/rentals', createRental);
+
+export default router; 

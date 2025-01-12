@@ -1,26 +1,64 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-require('dotenv').config();
+import express, { json } from 'express';
+import { connect } from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+// Import routes
+import userRoutes from './routes/userRoutes.js';
+import ownerRoutes from './routes/ownerRoutes.js';
+import renterRoutes from './routes/renterRoutes.js';
+import cycleRoutes from './routes/cycleRoutes.js';
+import rentalRoutes from './routes/rentalRoutes.js';
+
+// Import Firebase admin
+import './config/firebase.js';
+
+dotenv.config();
 
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(json());
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
 
 // Routes
-app.use('/api/owner', require('./routes/ownerRoutes'));
-app.use('/api/renter', require('./routes/renterRoutes'));
-app.use('/api/cycles', require('./routes/cycleRoutes'));
-app.use('/api/rentals', require('./routes/rentalRoutes'));
+app.use('/api/users', userRoutes);
+app.use('/api/owner', ownerRoutes);
+app.use('/api/renter', renterRoutes);
+app.use('/api/cycles', cycleRoutes);
+app.use('/api/rentals', rentalRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    message: 'Route not found',
+    error: 'NOT_FOUND'
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error',
+    error: err.code || 'INTERNAL_ERROR'
+  });
+});
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
+connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+export default app; 

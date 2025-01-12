@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
+import { Schema, model } from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+const userSchema = new Schema({
   uid: {
     type: String,
     required: [true, 'Firebase UID is required'],
@@ -81,6 +81,6 @@ userSchema.pre('save', function(next) {
   next();
 });
 
-const User = mongoose.model('User', userSchema);
+const User = model('User', userSchema);
 
-module.exports = User; 
+export default User; 

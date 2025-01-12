@@ -1,105 +1,68 @@
-const Cycle = require('../models/Cycle');
-const Rental = require('../models/Rental');
+import Cycle from '../models/Cycle.js';
+import User from '../models/User.js';
 
-const ownerController = {
-  // Get owner dashboard statistics
-  getDashboardStats: async (req, res) => {
-    try {
-      const ownerUID = req.user.uid;
+// Get dashboard statistics
+export const getDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const totalCycles = await Cycle.countDocuments({ owner: userId });
+    const rentedCycles = await Cycle.countDocuments({ owner: userId, isRented: true });
+    const availableCycles = await Cycle.countDocuments({ owner: userId, isRented: false });
 
-      // Get total cycles
-      const totalCycles = await Cycle.countDocuments({ ownerUID });
-
-      // Get active rentals
-      const activeRentals = await Rental.countDocuments({
-        ownerUID,
-        status: 'active'
-      });
-
-      // Get total earnings
-      const totalEarnings = await Rental.aggregate([
-        {
-          $match: {
-            ownerUID,
-            status: 'completed'
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalCost' }
-          }
-        }
-      ]);
-
-      // Get average rating
-      const ratingStats = await Rental.aggregate([
-        {
-          $match: {
-            ownerUID,
-            rating: { $exists: true }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            averageRating: { $avg: '$rating' }
-          }
-        }
-      ]);
-
-      // Get recent activities
-      const recentActivities = await Rental.find({ ownerUID })
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .populate('cycleId');
-
-      res.json({
-        totalCycles,
-        activeRentals,
-        totalEarnings: totalEarnings[0]?.total || 0,
-        averageRating: ratingStats[0]?.averageRating || 0,
-        recentActivities
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  },
-
-  // Add a new cycle
-  addCycle: async (req, res) => {
-    try {
-      const { model, description, hourlyRate, location, images } = req.body;
-      const ownerUID = req.user.uid;
-
-      const cycle = new Cycle({
-        ownerUID,
-        model,
-        description,
-        hourlyRate,
-        location: {
-          type: 'Point',
-          coordinates: [location.longitude, location.latitude]
-        },
-        images
-      });
-
-      await cycle.save();
-      res.status(201).json(cycle);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  },
-
-  // Get owner's cycles
-  getMyCycles: async (req, res) => {
-    try {
-      const cycles = await Cycle.find({ ownerUID: req.user.uid });
-      res.json(cycles);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+    res.json({
+      totalCycles,
+      rentedCycles,
+      availableCycles
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching dashboard stats',
+      error: error.message
+    });
   }
 };
 
-module.exports = ownerController; 
+// Add a new cycle
+export const addCycle = async (req, res) => {
+  try {
+    const { brand, model, condition, hourlyRate, description, location } = req.body;
+    const owner = req.user.uid;
+
+    const cycle = new Cycle({
+      owner,
+      brand,
+      model,
+      condition,
+      hourlyRate,
+      description,
+      location
+    });
+
+    await cycle.save();
+
+    res.status(201).json({
+      message: 'Cycle added successfully',
+      cycle
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error adding cycle',
+      error: error.message
+    });
+  }
+};
+
+// Get owner's cycles
+export const getMyCycles = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const cycles = await Cycle.find({ owner: userId });
+
+    res.json({ cycles });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching cycles',
+      error: error.message
+    });
+  }
+}; 

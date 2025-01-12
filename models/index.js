@@ -1,8 +1,8 @@
-const User = require('./User');
-const Cycle = require('./Cycle');
-const Rental = require('./Rental');
+import User from './User.js';
+import Cycle from './Cycle.js';
+import Rental from './Rental.js';
 
-module.exports = {
+export default {
   User,
   Cycle,
   Rental

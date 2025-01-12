@@ -1,101 +1,86 @@
-const Cycle = require('../models/Cycle');
-const Rental = require('../models/Rental');
+import Cycle from '../models/Cycle.js';
+import Rental from '../models/Rental.js';
+import User from '../models/User.js';
 
-const renterController = {
-  // Get renter dashboard statistics
-  getDashboardStats: async (req, res) => {
-    try {
-      const renterUID = req.user.uid;
+// Get renter's dashboard statistics
+export const getDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const activeRentals = await Rental.countDocuments({ 
+      renter: userId, 
+      status: 'active' 
+    });
+    const completedRentals = await Rental.countDocuments({ 
+      renter: userId, 
+      status: 'completed' 
+    });
 
-      // Get total rides
-      const totalRides = await Rental.countDocuments({
-        renterUID,
-        status: 'completed'
-      });
-
-      // Get active rental
-      const activeRental = await Rental.findOne({
-        renterUID,
-        status: 'active'
-      }).populate('cycleId');
-
-      // Get total spent
-      const totalSpent = await Rental.aggregate([
-        {
-          $match: {
-            renterUID,
-            status: 'completed'
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalCost' }
-          }
-        }
-      ]);
-
-      // Get recent rides
-      const recentRides = await Rental.find({
-        renterUID,
-        status: 'completed'
-      })
-        .sort({ endTime: -1 })
-        .limit(5)
-        .populate('cycleId');
-
-      res.json({
-        totalRides,
-        activeRental,
-        totalSpent: totalSpent[0]?.total || 0,
-        recentRides
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  },
-
-  // Create new rental
-  createRental: async (req, res) => {
-    try {
-      const { cycleId, startTime, duration } = req.body;
-      const renterUID = req.user.uid;
-
-      // Get cycle details
-      const cycle = await Cycle.findById(cycleId);
-      if (!cycle) {
-        return res.status(404).json({ message: 'Cycle not found' });
-      }
-
-      if (cycle.status !== 'available') {
-        return res.status(400).json({ message: 'Cycle is not available' });
-      }
-
-      const endTime = new Date(startTime);
-      endTime.setHours(endTime.getHours() + duration);
-
-      const totalCost = cycle.hourlyRate * duration;
-
-      const rental = new Rental({
-        cycleId,
-        renterUID,
-        ownerUID: cycle.ownerUID,
-        startTime,
-        endTime,
-        duration,
-        totalCost
-      });
-
-      // Update cycle status
-      cycle.status = 'rented';
-      await cycle.save();
-
-      await rental.save();
-      res.status(201).json(rental);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
+    res.json({
+      activeRentals,
+      completedRentals
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fetching dashboard stats',
+      error: error.message
+    });
   }
 };
 
-module.exports = renterController; 
+// Create a new rental
+export const createRental = async (req, res) => {
+  try {
+    const { cycleId, startTime, endTime } = req.body;
+    const renterId = req.user.uid;
+
+    // Find the cycle
+    const cycle = await Cycle.findById(cycleId);
+    if (!cycle) {
+      return res.status(404).json({
+        message: 'Cycle not found',
+        error: 'CYCLE_NOT_FOUND'
+      });
+    }
+
+    // Check if cycle is available
+    if (cycle.isRented) {
+      return res.status(400).json({
+        message: 'Cycle is already rented',
+        error: 'CYCLE_UNAVAILABLE'
+      });
+    }
+
+    // Calculate rental duration and cost
+    const duration = (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60); // in hours
+    const totalCost = duration * cycle.hourlyRate;
+
+    // Create rental
+    const rental = new Rental({
+      cycle: cycleId,
+      renter: renterId,
+      owner: cycle.owner,
+      startTime,
+      endTime,
+      duration,
+      totalCost,
+      status: 'active'
+    });
+
+    // Update cycle status
+    cycle.isRented = true;
+    await cycle.save();
+
+    // Save rental
+    await rental.save();
+
+    res.status(201).json({
+      message: 'Rental created successfully',
+      rental
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error creating rental',
+      error: error.message
+    });
+  }
+}; 

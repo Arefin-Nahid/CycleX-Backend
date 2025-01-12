@@ -1,53 +1,65 @@
-const mongoose = require('mongoose');
+import { Schema, model } from 'mongoose';
 
-const cycleSchema = new mongoose.Schema({
-  ownerUID: {
+const cycleSchema = new Schema({
+  owner: {
+    type: String,  // Firebase UID of the owner
+    required: true,
+    ref: 'User'
+  },
+  brand: {
     type: String,
     required: true,
+    trim: true
   },
   model: {
     type: String,
     required: true,
+    trim: true
   },
-  description: String,
+  condition: {
+    type: String,
+    required: true,
+    enum: ['Excellent', 'Good', 'Fair'],
+    default: 'Good'
+  },
   hourlyRate: {
     type: Number,
     required: true,
+    min: 0
   },
-  status: {
+  description: {
     type: String,
-    enum: ['available', 'rented', 'maintenance', 'inactive'],
-    default: 'available'
+    required: true,
+    trim: true
   },
   location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number],
-      required: true
-    }
+    type: String,
+    required: true,
+    trim: true
   },
-  images: [String],
-  rating: {
-    type: Number,
-    default: 0
+  isRented: {
+    type: Boolean,
+    default: false
   },
-  totalRentals: {
-    type: Number,
-    default: 0
+  images: [{
+    type: String,  // URLs to images
+  }],
+  createdAt: {
+    type: Date,
+    default: Date.now
   },
-  totalEarnings: {
-    type: Number,
-    default: 0
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
-}, {
-  timestamps: true
 });
 
-// Index for geospatial queries
-cycleSchema.index({ location: '2dsphere' });
+// Update timestamp on save
+cycleSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
 
-module.exports = mongoose.model('Cycle', cycleSchema); 
+const Cycle = model('Cycle', cycleSchema);
+
+export default Cycle; 

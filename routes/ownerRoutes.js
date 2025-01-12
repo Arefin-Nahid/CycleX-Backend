@@ -1,9 +1,19 @@
-const router = require('express').Router();
-const ownerController = require('../controllers/ownerController');
-const authMiddleware = require('../middleware/authMiddleware');
+import { Router } from 'express';
+import { getDashboardStats, addCycle, getMyCycles } from '../controllers/ownerController.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
-router.get('/dashboard-stats', authMiddleware, ownerController.getDashboardStats);
-router.post('/cycles', authMiddleware, ownerController.addCycle);
-router.get('/my-cycles', authMiddleware, ownerController.getMyCycles);
+const router = Router();
 
-module.exports = router; 
+// All routes should use authMiddleware
+router.use(authMiddleware);
+
+// Get dashboard statistics
+router.get('/dashboard', getDashboardStats);
+
+// Add a new cycle
+router.post('/cycles', addCycle);
+
+// Get owner's cycles
+router.get('/cycles', getMyCycles);
+
+export default router; 

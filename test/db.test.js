@@ -1,16 +1,17 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
+import { connect, connection } from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
 
 describe('MongoDB Connection', () => {
   beforeAll(async () => {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await connect(process.env.MONGODB_URI);
   });
 
   afterAll(async () => {
-    await mongoose.connection.close();
+    await connection.close();
   });
 
   it('should connect to MongoDB', () => {
-    expect(mongoose.connection.readyState).toBe(1);
+    expect(connection.readyState).toBe(1);
   });
 }); 
