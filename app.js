@@ -21,6 +21,17 @@ const app = express();
 app.use(cors());
 app.use(json());
 
+// Vercel check route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'Welcome to CycleX API!',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    contact: { email: 'nahid7ar@gmail.com', phone: '+880-1727-892717' },
+  });
+});
+
 // Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK' });
