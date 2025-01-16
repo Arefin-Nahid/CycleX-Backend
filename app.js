@@ -50,15 +50,12 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Version Prefix
-const API_PREFIX = '/api/v1';
-
 // Routes
-app.use(`${API_PREFIX}/users`, userRoutes);
-app.use(`${API_PREFIX}/owner`, ownerRoutes);
-app.use(`${API_PREFIX}/renter`, renterRoutes);
-app.use(`${API_PREFIX}/cycles`, cycleRoutes);
-app.use(`${API_PREFIX}/rentals`, rentalRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/owner', ownerRoutes);
+app.use('/api/renter', renterRoutes);
+app.use('/api/cycles', cycleRoutes);
+app.use('/api/rentals', rentalRoutes);
 
 // 404 handler
 app.use((req, res) => {
