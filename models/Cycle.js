@@ -2,7 +2,7 @@ import { Schema, model } from 'mongoose';
 
 const cycleSchema = new Schema({
   owner: {
-    type: String,  // Firebase UID of the owner
+    type: String,  // Firebase UID
     required: true,
     ref: 'User'
   },
@@ -41,8 +41,16 @@ const cycleSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isActive: {
+    type: Boolean,
+    default: false
+  },
+  coordinates: {
+    latitude: Number,
+    longitude: Number
+  },
   images: [{
-    type: String,  // URLs to images
+    type: String,
   }],
   createdAt: {
     type: Date,
@@ -54,7 +62,6 @@ const cycleSchema = new Schema({
   }
 });
 
-// Update timestamp on save
 cycleSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();

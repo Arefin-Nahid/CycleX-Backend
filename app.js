@@ -33,22 +33,38 @@ app.get('/', (req, res) => {
 });
 
 // Health check route
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK' });
+app.get('/health', async (req, res) => {
+  try {
+    const dbStatus = (await connect.connection).readyState === 1 ? 'Connected' : 'Disconnected';
+    res.status(200).json({
+      status: 'OK',
+      database: dbStatus,
+      uptime: process.uptime(),
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Health check failed',
+      error: err.message,
+    });
+  }
 });
 
+// API Version Prefix
+const API_PREFIX = '/api/v1';
+
 // Routes
-app.use('/api/users', userRoutes);
-app.use('/api/owner', ownerRoutes);
-app.use('/api/renter', renterRoutes);
-app.use('/api/cycles', cycleRoutes);
-app.use('/api/rentals', rentalRoutes);
+app.use(`${API_PREFIX}/users`, userRoutes);
+app.use(`${API_PREFIX}/owner`, ownerRoutes);
+app.use(`${API_PREFIX}/renter`, renterRoutes);
+app.use(`${API_PREFIX}/cycles`, cycleRoutes);
+app.use(`${API_PREFIX}/rentals`, rentalRoutes);
 
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({
     message: 'Route not found',
-    error: 'NOT_FOUND'
+    error: 'NOT_FOUND',
   });
 });
 
@@ -57,19 +73,32 @@ app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
     message: err.message || 'Internal server error',
-    error: err.code || 'INTERNAL_ERROR'
+    error: err.code || 'INTERNAL_ERROR',
   });
 });
 
 // Connect to MongoDB
 connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
 })
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
+  .catch((err) => {
     console.error('MongoDB connection error:', err);
     process.exit(1);
   });
 
-export default app; 
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, closing MongoDB connection...');
+  await connect.connection.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, closing MongoDB connection...');
+  await connect.connection.close();
+  process.exit(0);
+});
+
+export default app;
