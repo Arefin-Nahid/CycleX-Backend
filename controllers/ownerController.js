@@ -143,6 +143,7 @@ export const getRecentActivities = async (req, res) => {
 export const toggleCycleStatus = async (req, res) => {
   try {
     const { cycleId } = req.params;
+    const { coordinates } = req.body; // Receive coordinates from the frontend
     const userId = req.user.uid;
 
     const cycle = await Cycle.findById(cycleId);
@@ -160,7 +161,10 @@ export const toggleCycleStatus = async (req, res) => {
       });
     }
 
-    cycle.isActive = !cycle.isActive;
+    cycle.isActive = !cycle.isActive; // Toggle the active status
+    if (coordinates) {
+      cycle.coordinates = coordinates; // Update the coordinates if provided
+    }
     await cycle.save();
 
     res.json({
@@ -174,6 +178,7 @@ export const toggleCycleStatus = async (req, res) => {
     });
   }
 };
+
 
 // Get rental history
 export const getRentalHistory = async (req, res) => {
