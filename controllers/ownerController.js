@@ -48,14 +48,12 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
-// Add a new cycle
+//add new cycle
 export const addCycle = async (req, res) => {
   try {
-    const { brand, model, condition, hourlyRate, description, location } =
-      req.body;
+    const { brand, model, condition, hourlyRate, description, location, coordinates } = req.body;
     const owner = req.user.uid;
 
-    // Validate required fields
     if (!brand || !model || !hourlyRate || !description || !location) {
       return res.status(400).json({
         message: 'Missing required fields',
@@ -63,7 +61,6 @@ export const addCycle = async (req, res) => {
       });
     }
 
-    // Create new cycle
     const cycle = new Cycle({
       owner,
       brand,
@@ -74,6 +71,7 @@ export const addCycle = async (req, res) => {
       location,
       isActive: false,
       isRented: false,
+      coordinates: coordinates || null, // Default to null if no coordinates provided
     });
 
     await cycle.save();

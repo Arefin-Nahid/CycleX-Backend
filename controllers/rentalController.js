@@ -46,6 +46,43 @@ export const getRentalById = async (req, res) => {
   }
 };
 
+export const rentCycle = async (req, res) => {
+  try {
+    const { cycleId } = req.body;
+    const userId = req.user.uid;
+
+    // Find the cycle
+    const cycle = await Cycle.findById(cycleId);
+    if (!cycle) {
+      return res.status(404).json({ message: 'Cycle not found', error: 'CYCLE_NOT_FOUND' });
+    }
+
+    // Ensure the cycle is available for rent
+    if (cycle.isRented) {
+      return res.status(400).json({ message: 'Cycle is already rented', error: 'CYCLE_UNAVAILABLE' });
+    }
+
+    // Create the rental
+    const rental = new Rental({
+      cycle: cycleId,
+      renter: userId,
+      owner: cycle.owner,
+      startTime: new Date(),
+      status: 'active',
+    });
+
+    // Update cycle status
+    cycle.isRented = true;
+    await cycle.save();
+    await rental.save();
+
+    res.status(201).json({ message: 'Cycle rented successfully', rental });
+  } catch (error) {
+    res.status(500).json({ message: 'Error renting cycle', error: error.message });
+  }
+};
+
+
 // Complete rental
 export const completeRental = async (req, res) => {
   try {
