@@ -186,7 +186,7 @@ export const rentCycle = async (req, res) => {
 // Complete rental
 export const completeRental = async (req, res) => {
   try {
-    const rental = await Rental.findById(req.params.id);
+    const rental = await Rental.findById(req.params.id).populate('cycle');
 
     if (!rental) {
       return res.status(404).json({
@@ -210,8 +210,19 @@ export const completeRental = async (req, res) => {
       });
     }
 
-    // Update rental status
+    // Calculate duration and cost
+    const endTime = new Date();
+    const startTime = new Date(rental.startTime);
+    const durationInMs = endTime - startTime;
+    const durationInHours = durationInMs / (1000 * 60 * 60); // Convert to hours
+    const hourlyRate = rental.cycle.hourlyRate || 0;
+    const totalCost = durationInHours * hourlyRate;
+
+    // Update rental with calculated values
     rental.status = 'completed';
+    rental.endTime = endTime;
+    rental.duration = Math.round(durationInHours * 100) / 100; // Round to 2 decimal places
+    rental.totalCost = Math.round(totalCost * 100) / 100; // Round to 2 decimal places
 
     // Add rating and review if provided
     if (req.body.rating) {
@@ -224,7 +235,7 @@ export const completeRental = async (req, res) => {
     await rental.save();
 
     // Update cycle availability
-    const cycle = await Cycle.findById(rental.cycle);
+    const cycle = await Cycle.findById(rental.cycle._id);
     if (cycle) {
       cycle.isRented = false;
       await cycle.save();
@@ -232,11 +243,124 @@ export const completeRental = async (req, res) => {
 
     res.json({
       message: 'Rental completed successfully',
-      rental,
+      rental: {
+        _id: rental._id,
+        cycle: {
+          _id: rental.cycle._id,
+          brand: rental.cycle.brand,
+          model: rental.cycle.model,
+          location: rental.cycle.location,
+        },
+        startTime: rental.startTime,
+        endTime: rental.endTime,
+        duration: rental.duration,
+        totalCost: rental.totalCost,
+        status: rental.status,
+        rating: rental.rating,
+        review: rental.review,
+      },
+    });
+  } catch (error) {
+    console.error('Error completing rental:', error);
+    res.status(500).json({
+      message: 'Error completing rental',
+      error: error.message,
+    });
+  }
+};
+
+// Debug rental status
+export const debugRentalStatus = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    
+    // Get user's active rentals
+    const activeRentals = await Rental.find({
+      renter: userId,
+      status: 'active'
+    }).populate('cycle');
+    
+    // Get cycles that might be stuck as rented
+    const rentedCycles = await Cycle.find({
+      isRented: true,
+      isActive: true
+    });
+    
+    // Check for orphaned rentals (cycles marked as rented but no active rental)
+    const orphanedCycles = [];
+    for (const cycle of rentedCycles) {
+      const hasActiveRental = await Rental.findOne({
+        cycle: cycle._id,
+        status: 'active'
+      });
+      
+      if (!hasActiveRental) {
+        orphanedCycles.push({
+          _id: cycle._id,
+          brand: cycle.brand,
+          model: cycle.model,
+          owner: cycle.owner,
+          isRented: cycle.isRented,
+          isActive: cycle.isActive
+        });
+      }
+    }
+    
+    res.json({
+      userId,
+      activeRentals: activeRentals.length,
+      rentedCycles: rentedCycles.length,
+      orphanedCycles: orphanedCycles,
+      activeRentalDetails: activeRentals.map(r => ({
+        _id: r._id,
+        cycle: r.cycle._id,
+        cycleBrand: r.cycle.brand,
+        startTime: r.startTime,
+        status: r.status
+      }))
     });
   } catch (error) {
     res.status(500).json({
-      message: 'Error completing rental',
+      message: 'Error debugging rental status',
+      error: error.message,
+    });
+  }
+};
+
+// Fix orphaned cycles (cycles marked as rented but no active rental)
+export const fixOrphanedCycles = async (req, res) => {
+  try {
+    const rentedCycles = await Cycle.find({
+      isRented: true,
+      isActive: true
+    });
+    
+    const fixedCycles = [];
+    
+    for (const cycle of rentedCycles) {
+      const hasActiveRental = await Rental.findOne({
+        cycle: cycle._id,
+        status: 'active'
+      });
+      
+      if (!hasActiveRental) {
+        cycle.isRented = false;
+        await cycle.save();
+        fixedCycles.push({
+          _id: cycle._id,
+          brand: cycle.brand,
+          model: cycle.model
+        });
+      }
+    }
+    
+    res.json({
+      message: `Fixed ${fixedCycles.length} orphaned cycles`,
+      fixedCycles
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Error fixing orphaned cycles',
       error: error.message,
     });
   }

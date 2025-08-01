@@ -44,26 +44,43 @@ export const getActiveRentals = async (req, res) => {
       .populate('cycle')
       .sort({ startTime: -1 });
 
-    const formattedRentals = rentals.map((rental) => ({
-      _id: rental._id,
-      id: rental._id,
-      cycle: {
-        _id: rental.cycle._id,
-        brand: rental.cycle.brand,
-        model: rental.cycle.model,
+    const formattedRentals = rentals.map((rental) => {
+      // Calculate real-time duration and cost
+      const currentTime = new Date();
+      const startTime = new Date(rental.startTime);
+      const durationInMs = currentTime - startTime;
+      const durationInHours = durationInMs / (1000 * 60 * 60);
+      const hourlyRate = rental.cycle.hourlyRate || 0;
+      const currentCost = durationInHours * hourlyRate;
+
+      return {
+        _id: rental._id,
+        id: rental._id,
+        cycle: {
+          _id: rental.cycle._id,
+          brand: rental.cycle.brand,
+          model: rental.cycle.model,
+          location: rental.cycle.location,
+          hourlyRate: rental.cycle.hourlyRate,
+          condition: rental.cycle.condition,
+          description: rental.cycle.description,
+        },
+        model: `${rental.cycle.brand} ${rental.cycle.model}`,
+        startTime: rental.startTime,
+        duration: Math.round(durationInHours * 100) / 100, // Real-time duration in hours
+        durationInMinutes: Math.floor(durationInMs / (1000 * 60)), // Duration in minutes
+        cost: Math.round(currentCost * 100) / 100, // Real-time cost
         location: rental.cycle.location,
         hourlyRate: rental.cycle.hourlyRate,
-      },
-      model: `${rental.cycle.brand} ${rental.cycle.model}`,
-      startTime: rental.startTime,
-      duration: rental.duration || 0,
-      cost: rental.totalCost || 0,
-      location: rental.cycle.location,
-      hourlyRate: rental.hourlyRate,
-    }));
+        status: rental.status,
+        renter: rental.renter,
+        owner: rental.owner,
+      };
+    });
 
     res.json({ rentals: formattedRentals });
   } catch (error) {
+    console.error('Error fetching active rentals:', error);
     res.status(500).json({
       message: 'Error fetching active rentals',
       error: error.message,
