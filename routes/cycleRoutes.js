@@ -8,6 +8,7 @@ import {
   deleteCycle,
   getAllCycles,
   rentCycleByQR,
+  testRentalEndpoint,
 } from '../controllers/cycleController.js';
 
 const router = Router();
@@ -24,5 +25,6 @@ router.use(authMiddleware);
 router.patch('/:id', updateCycle); // Update cycle details
 router.delete('/:id', deleteCycle); // Delete cycle
 router.post('/rent-by-qr', rentCycleByQR); // Rent cycle by QR code
+router.post('/test-rental', testRentalEndpoint); // Test endpoint for debugging
 
 export default router;
