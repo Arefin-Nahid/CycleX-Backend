@@ -1,5 +1,6 @@
 import Cycle from '../models/Cycle.js';
 import Rental from '../models/Rental.js';
+import mongoose from 'mongoose';
 
 // Get nearby cycles
 export const getNearbyCycles = async (req, res) => {
@@ -48,7 +49,7 @@ export const getCycleById = async (req, res) => {
     // Check if cycle is available for rent
     if (cycle.isRented) {
       return res.status(400).json({
-        message: 'Cycle is currently rented',
+        message: 'Cycle is already rented',
         error: 'CYCLE_UNAVAILABLE',
         cycle: {
           _id: cycle._id,
@@ -81,27 +82,42 @@ export const getCycleById = async (req, res) => {
       });
     }
 
-    res.json({ 
-      message: 'Cycle found successfully',
-      cycle 
+    res.json({
+      message: 'Cycle details retrieved successfully',
+      cycle: {
+        _id: cycle._id,
+        brand: cycle.brand,
+        model: cycle.model,
+        condition: cycle.condition,
+        hourlyRate: cycle.hourlyRate,
+        description: cycle.description,
+        location: cycle.location,
+        isRented: cycle.isRented,
+        isActive: cycle.isActive,
+        images: cycle.images,
+      }
     });
   } catch (error) {
     console.error('Error in getCycleById:', error);
     res.status(500).json({
-      message: 'Error fetching cycle',
+      message: 'Error retrieving cycle details',
       error: error.message,
     });
   }
 };
 
-// Rent cycle by QR code
+// Enhanced rentCycleByQR with atomic operations and race condition prevention
 export const rentCycleByQR = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { cycleId } = req.body;
     const userId = req.user.uid;
 
     // Validate input
     if (!cycleId) {
+      await session.abortTransaction();
       return res.status(400).json({
         message: 'Cycle ID is required',
         error: 'MISSING_CYCLE_ID',
@@ -110,59 +126,43 @@ export const rentCycleByQR = async (req, res) => {
 
     // Validate ObjectId format
     if (cycleId.length !== 24) {
+      await session.abortTransaction();
       return res.status(400).json({
         message: 'Invalid cycle ID format',
         error: 'INVALID_ID_FORMAT',
       });
     }
 
-    // Find the cycle
-    const cycle = await Cycle.findById(cycleId);
+    // Use findOneAndUpdate with session for atomic operation
+    // This prevents race conditions by ensuring only one user can rent a cycle at a time
+    const cycle = await Cycle.findOneAndUpdate(
+      { 
+        _id: cycleId, 
+        isActive: true, 
+        isRented: false // Ensure not already rented
+      },
+      { 
+        isRented: true,
+        currentRenter: userId,
+        lastRentedAt: new Date()
+      },
+      { 
+        new: true, 
+        session // Use transaction session
+      }
+    );
+
     if (!cycle) {
-      return res.status(404).json({ 
-        message: 'Cycle not found', 
-        error: 'CYCLE_NOT_FOUND' 
-      });
-    }
-
-    // Check if cycle is available
-    if (cycle.isRented) {
+      await session.abortTransaction();
       return res.status(400).json({ 
-        message: 'Cycle is already rented', 
-        error: 'CYCLE_UNAVAILABLE',
-        cycle: {
-          _id: cycle._id,
-          brand: cycle.brand,
-          model: cycle.model,
-          condition: cycle.condition,
-          hourlyRate: cycle.hourlyRate,
-          location: cycle.location,
-          isRented: cycle.isRented,
-          isActive: cycle.isActive,
-        }
-      });
-    }
-
-    // Check if cycle is active
-    if (!cycle.isActive) {
-      return res.status(400).json({ 
-        message: 'Cycle is not available for rent', 
-        error: 'CYCLE_INACTIVE',
-        cycle: {
-          _id: cycle._id,
-          brand: cycle.brand,
-          model: cycle.model,
-          condition: cycle.condition,
-          hourlyRate: cycle.hourlyRate,
-          location: cycle.location,
-          isRented: cycle.isRented,
-          isActive: cycle.isActive,
-        }
+        message: 'Cycle is not available for rent (may be inactive or already rented)', 
+        error: 'CYCLE_UNAVAILABLE_OR_INACTIVE'
       });
     }
 
     // Check if user is trying to rent their own cycle
     if (cycle.owner === userId) {
+      await session.abortTransaction();
       return res.status(400).json({ 
         message: 'You cannot rent your own cycle', 
         error: 'OWNER_RENTAL_NOT_ALLOWED' 
@@ -173,9 +173,10 @@ export const rentCycleByQR = async (req, res) => {
     const activeRental = await Rental.findOne({
       renter: userId,
       status: 'active'
-    });
+    }).session(session);
 
     if (activeRental) {
+      await session.abortTransaction();
       return res.status(400).json({ 
         message: 'You already have an active rental', 
         error: 'ACTIVE_RENTAL_EXISTS',
@@ -187,30 +188,30 @@ export const rentCycleByQR = async (req, res) => {
       });
     }
 
-    // Create the rental
-    const startTime = new Date();
+    // Create rental record
     const rental = new Rental({
       cycle: cycleId,
       renter: userId,
       owner: cycle.owner,
-      startTime: startTime,
+      startTime: new Date(),
       status: 'active',
-      duration: 0, // Will be calculated when rental ends
-      totalCost: 0, // Will be calculated when rental ends
+      hourlyRate: cycle.hourlyRate
     });
 
-    // Update cycle status
-    cycle.isRented = true;
-    
-    // Save both documents
-    await Promise.all([cycle.save(), rental.save()]);
+    await rental.save({ session });
+    await session.commitTransaction();
 
-    // Populate cycle details for response
-    await rental.populate('cycle');
+    console.log(`✅ Rental started successfully: Cycle ${cycleId} rented by user ${userId}`);
 
-    res.status(201).json({ 
-      message: 'Cycle rented successfully via QR code',
-      rental,
+    res.json({
+      message: 'Rental started successfully',
+      rental: {
+        _id: rental._id,
+        cycle: rental.cycle,
+        startTime: rental.startTime,
+        hourlyRate: rental.hourlyRate,
+        status: rental.status
+      },
       cycle: {
         _id: cycle._id,
         brand: cycle.brand,
@@ -218,16 +219,18 @@ export const rentCycleByQR = async (req, res) => {
         condition: cycle.condition,
         hourlyRate: cycle.hourlyRate,
         location: cycle.location,
-        isRented: cycle.isRented,
-        isActive: cycle.isActive,
       }
     });
+
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error in rentCycleByQR:', error);
     res.status(500).json({ 
-      message: 'Error renting cycle via QR code', 
+      message: 'Error processing rental request', 
       error: error.message 
     });
+  } finally {
+    session.endSession();
   }
 };
 
