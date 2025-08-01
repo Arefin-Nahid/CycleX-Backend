@@ -45,12 +45,21 @@ export const getActiveRentals = async (req, res) => {
       .sort({ startTime: -1 });
 
     const formattedRentals = rentals.map((rental) => ({
-      id: rental.cycle._id,
+      _id: rental._id,
+      id: rental._id,
+      cycle: {
+        _id: rental.cycle._id,
+        brand: rental.cycle.brand,
+        model: rental.cycle.model,
+        location: rental.cycle.location,
+        hourlyRate: rental.cycle.hourlyRate,
+      },
       model: `${rental.cycle.brand} ${rental.cycle.model}`,
       startTime: rental.startTime,
-      duration: rental.duration,
-      cost: rental.totalCost,
+      duration: rental.duration || 0,
+      cost: rental.totalCost || 0,
       location: rental.cycle.location,
+      hourlyRate: rental.hourlyRate,
     }));
 
     res.json({ rentals: formattedRentals });
@@ -357,23 +366,41 @@ export const completeRental = async (req, res) => {
       });
     }
 
+    // Calculate duration and cost
+    const endTime = new Date();
+    const duration = Math.ceil((endTime - rental.startTime) / (1000 * 60)); // Duration in minutes
+    const hours = Math.ceil(duration / 60); // Round up to the nearest hour
+    const totalCost = hours * rental.hourlyRate;
+
     // Update rental status
     rental.status = 'completed';
-    rental.endTime = new Date();
+    rental.endTime = endTime;
+    rental.duration = duration;
+    rental.totalCost = totalCost;
     await rental.save();
 
     // Update cycle status
     const cycle = await Cycle.findById(rental.cycle);
     if (cycle) {
       cycle.isRented = false;
+      cycle.currentRenter = null;
       await cycle.save();
     }
 
     res.json({
       message: 'Rental completed successfully',
-      rental,
+      rental: {
+        _id: rental._id,
+        cycle: rental.cycle,
+        startTime: rental.startTime,
+        endTime: rental.endTime,
+        duration: rental.duration,
+        totalCost: rental.totalCost,
+        status: rental.status,
+      },
     });
   } catch (error) {
+    console.error('Error completing rental:', error);
     res.status(500).json({
       message: 'Error completing rental',
       error: error.message,
