@@ -2,23 +2,189 @@ import Cycle from '../models/Cycle.js';
 import Rental from '../models/Rental.js';
 import mongoose from 'mongoose';
 
-// Get nearby cycles
+// Get nearby cycles with location-based filtering
 export const getNearbyCycles = async (req, res) => {
   try {
-    const { lat, lng, radius = 5 } = req.query; // Add radius for location-based filtering if needed
+    const { lat, lng, radius = 10 } = req.query; // Default radius 10km
+    
+    console.log(`🔍 Fetching nearby cycles for location: ${lat}, ${lng} within ${radius}km`);
 
-    // Get only active and available cycles
-    const cycles = await Cycle.find({
+    // Base query for active and available cycles
+    let query = {
       isActive: true,
       isRented: false,
-      // Location-based filtering can be implemented here
-      // e.g., use $geoWithin with geospatial data if the schema supports it
+      coordinates: { $exists: true, $ne: null }
+    };
+
+    // If coordinates are provided, add location-based filtering
+    if (lat && lng) {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lng);
+      const radiusInKm = parseFloat(radius);
+
+      // Validate coordinates
+      if (isNaN(latitude) || isNaN(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return res.status(400).json({
+          message: 'Invalid coordinates provided',
+          error: 'INVALID_COORDINATES'
+        });
+      }
+
+      // Add geospatial query for location-based filtering
+      // Using $geoWithin with $centerSphere for radius-based search
+      query['coordinates'] = {
+        $geoWithin: {
+          $centerSphere: [[longitude, latitude], radiusInKm / 6378.1] // Earth radius in km
+        }
+      };
+    }
+
+    // Find cycles matching the criteria
+    const cycles = await Cycle.find(query)
+      .select('_id owner brand model condition hourlyRate description location isRented isActive coordinates images createdAt updatedAt')
+      .sort({ createdAt: -1 }) // Sort by newest first
+      .limit(100); // Limit to 100 cycles for performance
+
+    console.log(`✅ Found ${cycles.length} active cycles`);
+
+    // Transform the response to ensure proper coordinate structure
+    const transformedCycles = cycles.map(cycle => ({
+      _id: cycle._id,
+      owner: cycle.owner,
+      brand: cycle.brand,
+      model: cycle.model,
+      condition: cycle.condition,
+      hourlyRate: cycle.hourlyRate,
+      description: cycle.description,
+      location: cycle.location,
+      isRented: cycle.isRented,
+      isActive: cycle.isActive,
+      coordinates: cycle.coordinates ? {
+        latitude: cycle.coordinates.latitude,
+        longitude: cycle.coordinates.longitude
+      } : null,
+      images: cycle.images || [],
+      createdAt: cycle.createdAt,
+      updatedAt: cycle.updatedAt
+    }));
+
+    res.json({ 
+      cycles: transformedCycles,
+      count: transformedCycles.length,
+      radius: radiusInKm || 'all',
+      center: lat && lng ? { latitude: parseFloat(lat), longitude: parseFloat(lng) } : null
     });
 
-    res.json({ cycles });
   } catch (error) {
+    console.error('❌ Error fetching nearby cycles:', error);
     res.status(500).json({
       message: 'Error fetching nearby cycles',
+      error: error.message,
+    });
+  }
+};
+
+// Get active cycles specifically for map view with optimized response
+export const getActiveCyclesForMap = async (req, res) => {
+  try {
+    const { lat, lng, radius = 20 } = req.query; // Default radius 20km for map view
+    
+    console.log(`🗺️ Fetching active cycles for map view: ${lat}, ${lng} within ${radius}km`);
+
+    // Base query for active and available cycles with coordinates
+    let query = {
+      isActive: true,
+      isRented: false,
+      $or: [
+        { 'coordinates.latitude': { $exists: true, $ne: null } },
+        { 'coordinates.coordinates': { $exists: true, $ne: null, $size: 2 } }
+      ]
+    };
+
+    let cycles;
+
+    // If coordinates are provided, use geospatial query
+    if (lat && lng) {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lng);
+      const radiusInKm = parseFloat(radius);
+
+      // Validate coordinates
+      if (isNaN(latitude) || isNaN(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return res.status(400).json({
+          message: 'Invalid coordinates provided',
+          error: 'INVALID_COORDINATES'
+        });
+      }
+
+      // Use geospatial query for better performance
+      cycles = await Cycle.find({
+        isActive: true,
+        isRented: false,
+        'coordinates.coordinates': {
+          $geoWithin: {
+            $centerSphere: [[longitude, latitude], radiusInKm / 6378.1]
+          }
+        }
+      })
+      .select('_id brand model hourlyRate coordinates location condition images')
+      .sort({ updatedAt: -1 })
+      .limit(150);
+
+    } else {
+      // Fallback to basic query without location filtering
+      cycles = await Cycle.find(query)
+        .select('_id brand model hourlyRate coordinates location condition images')
+        .sort({ updatedAt: -1 })
+        .limit(100);
+    }
+
+    console.log(`✅ Found ${cycles.length} active cycles for map`);
+
+    // Transform cycles for map display with minimal data
+    const mapCycles = cycles.map(cycle => {
+      let coordinates = null;
+      
+      // Handle both coordinate formats
+      if (cycle.coordinates) {
+        if (cycle.coordinates.latitude && cycle.coordinates.longitude) {
+          coordinates = {
+            latitude: cycle.coordinates.latitude,
+            longitude: cycle.coordinates.longitude
+          };
+        } else if (cycle.coordinates.coordinates && cycle.coordinates.coordinates.length === 2) {
+          coordinates = {
+            latitude: cycle.coordinates.coordinates[1],
+            longitude: cycle.coordinates.coordinates[0]
+          };
+        }
+      }
+
+      return {
+        _id: cycle._id,
+        brand: cycle.brand,
+        model: cycle.model,
+        hourlyRate: cycle.hourlyRate,
+        coordinates: coordinates,
+        location: cycle.location,
+        condition: cycle.condition,
+        hasImage: cycle.images && cycle.images.length > 0,
+        isActive: true,
+        isRented: false
+      };
+    }).filter(cycle => cycle.coordinates !== null); // Only return cycles with valid coordinates
+
+    res.json({ 
+      cycles: mapCycles,
+      count: mapCycles.length,
+      radius: lat && lng ? parseFloat(radius) : 'all',
+      center: lat && lng ? { latitude: parseFloat(lat), longitude: parseFloat(lng) } : null
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching cycles for map:', error);
+    res.status(500).json({
+      message: 'Error fetching cycles for map',
       error: error.message,
     });
   }
@@ -347,12 +513,48 @@ export const deleteCycle = async (req, res) => {
   }
 };
 
-// Get all cycles
+// Get all active cycles
 export const getAllCycles = async (req, res) => {
   try {
-    const cycles = await Cycle.find({ isRented: false });
+    console.log('🔍 Fetching all active cycles');
 
-    res.json({ cycles });
+    // Get only active and available cycles with coordinates
+    const cycles = await Cycle.find({
+      isActive: true,
+      isRented: false,
+      coordinates: { $exists: true, $ne: null }
+    })
+    .select('_id owner brand model condition hourlyRate description location isRented isActive coordinates images createdAt updatedAt')
+    .sort({ createdAt: -1 })
+    .limit(200); // Limit for performance
+
+    console.log(`✅ Found ${cycles.length} active cycles`);
+
+    // Transform the response to ensure consistent structure
+    const transformedCycles = cycles.map(cycle => ({
+      _id: cycle._id,
+      owner: cycle.owner,
+      brand: cycle.brand,
+      model: cycle.model,
+      condition: cycle.condition,
+      hourlyRate: cycle.hourlyRate,
+      description: cycle.description,
+      location: cycle.location,
+      isRented: cycle.isRented,
+      isActive: cycle.isActive,
+      coordinates: cycle.coordinates ? {
+        latitude: cycle.coordinates.latitude,
+        longitude: cycle.coordinates.longitude
+      } : null,
+      images: cycle.images || [],
+      createdAt: cycle.createdAt,
+      updatedAt: cycle.updatedAt
+    }));
+
+    res.json({ 
+      cycles: transformedCycles,
+      count: transformedCycles.length
+    });
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching cycles',

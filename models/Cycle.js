@@ -46,6 +46,18 @@ const cycleSchema = new Schema({
     default: false
   },
   coordinates: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: function() {
+        return this.isActive; // Require coordinates for active cycles
+      }
+    },
+    // Keep backward compatibility with direct lat/lng fields
     latitude: Number,
     longitude: Number
   },
@@ -62,8 +74,23 @@ const cycleSchema = new Schema({
   }
 });
 
+// Add geospatial index for location-based queries
+cycleSchema.index({ 'coordinates': '2dsphere' });
+
+// Add compound index for active and available cycles
+cycleSchema.index({ isActive: 1, isRented: 1, 'coordinates.latitude': 1, 'coordinates.longitude': 1 });
+
 cycleSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  
+  // Ensure coordinates are properly set for geospatial queries
+  if (this.coordinates && this.coordinates.latitude && this.coordinates.longitude) {
+    // Set GeoJSON coordinates for geospatial queries [longitude, latitude]
+    if (!this.coordinates.coordinates || this.coordinates.coordinates.length !== 2) {
+      this.coordinates.coordinates = [this.coordinates.longitude, this.coordinates.latitude];
+    }
+  }
+  
   next();
 });
 

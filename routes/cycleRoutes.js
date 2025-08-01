@@ -7,6 +7,7 @@ import {
   updateCycle,
   deleteCycle,
   getAllCycles,
+  getActiveCyclesForMap,
   rentCycleByQR,
   testRentalEndpoint,
 } from '../controllers/cycleController.js';
@@ -17,6 +18,7 @@ const router = Router();
 router.get('/', getAllCycles); // Get all available cycles
 router.get('/search', searchCycles); // Search for cycles by query
 router.get('/nearby', getNearbyCycles); // Get nearby cycles
+router.get('/map/active', getActiveCyclesForMap); // Get active cycles for map view
 router.get('/:id', getCycleById); // Get cycle by ID
 
 // Protected routes (require authentication)
