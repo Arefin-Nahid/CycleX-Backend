@@ -564,6 +564,54 @@ export const getAllCycles = async (req, res) => {
 };
 
 // Test endpoint for debugging rental issues
+// Debug endpoint to check cycles in database
+export const debugCycles = async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking all cycles in database');
+
+    const allCycles = await Cycle.find({})
+      .select('_id owner brand model isActive isRented coordinates location')
+      .sort({ createdAt: -1 });
+
+    const activeCycles = await Cycle.find({
+      isActive: true,
+      isRented: false
+    }).select('_id brand model coordinates');
+
+    const cyclesWithCoordinates = await Cycle.find({
+      coordinates: { $exists: true, $ne: null }
+    }).select('_id brand model coordinates');
+
+    console.log(`📊 Total cycles: ${allCycles.length}`);
+    console.log(`📊 Active cycles: ${activeCycles.length}`);
+    console.log(`📊 Cycles with coordinates: ${cyclesWithCoordinates.length}`);
+
+    res.json({
+      total: allCycles.length,
+      active: activeCycles.length,
+      withCoordinates: cyclesWithCoordinates.length,
+      allCycles: allCycles.map(cycle => ({
+        _id: cycle._id,
+        brand: cycle.brand,
+        model: cycle.model,
+        isActive: cycle.isActive,
+        isRented: cycle.isRented,
+        hasCoordinates: !!cycle.coordinates,
+        coordinates: cycle.coordinates,
+        location: cycle.location
+      })),
+      activeCycles: activeCycles,
+      cyclesWithCoordinates: cyclesWithCoordinates
+    });
+  } catch (error) {
+    console.error('❌ Debug error:', error);
+    res.status(500).json({
+      message: 'Debug endpoint error',
+      error: error.message
+    });
+  }
+};
+
 export const testRentalEndpoint = async (req, res) => {
   try {
     const { cycleId } = req.body;
