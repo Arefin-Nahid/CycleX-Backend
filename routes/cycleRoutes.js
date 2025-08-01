@@ -7,6 +7,7 @@ import {
   updateCycle,
   deleteCycle,
   getAllCycles,
+  rentCycleByQR,
 } from '../controllers/cycleController.js';
 
 const router = Router();
@@ -22,5 +23,6 @@ router.use(authMiddleware);
 
 router.patch('/:id', updateCycle); // Update cycle details
 router.delete('/:id', deleteCycle); // Delete cycle
+router.post('/rent-by-qr', rentCycleByQR); // Rent cycle by QR code
 
 export default router;

@@ -51,34 +51,134 @@ export const rentCycle = async (req, res) => {
     const { cycleId } = req.body;
     const userId = req.user.uid;
 
+    // Validate input
+    if (!cycleId) {
+      return res.status(400).json({
+        message: 'Cycle ID is required',
+        error: 'MISSING_CYCLE_ID',
+      });
+    }
+
+    // Validate ObjectId format
+    if (cycleId.length !== 24) {
+      return res.status(400).json({
+        message: 'Invalid cycle ID format',
+        error: 'INVALID_ID_FORMAT',
+      });
+    }
+
     // Find the cycle
     const cycle = await Cycle.findById(cycleId);
     if (!cycle) {
-      return res.status(404).json({ message: 'Cycle not found', error: 'CYCLE_NOT_FOUND' });
+      return res.status(404).json({ 
+        message: 'Cycle not found', 
+        error: 'CYCLE_NOT_FOUND' 
+      });
     }
 
     // Ensure the cycle is available for rent
     if (cycle.isRented) {
-      return res.status(400).json({ message: 'Cycle is already rented', error: 'CYCLE_UNAVAILABLE' });
+      return res.status(400).json({ 
+        message: 'Cycle is already rented', 
+        error: 'CYCLE_UNAVAILABLE',
+        cycle: {
+          _id: cycle._id,
+          brand: cycle.brand,
+          model: cycle.model,
+          condition: cycle.condition,
+          hourlyRate: cycle.hourlyRate,
+          location: cycle.location,
+          isRented: cycle.isRented,
+          isActive: cycle.isActive,
+        }
+      });
+    }
+
+    // Check if cycle is active
+    if (!cycle.isActive) {
+      return res.status(400).json({ 
+        message: 'Cycle is not available for rent', 
+        error: 'CYCLE_INACTIVE',
+        cycle: {
+          _id: cycle._id,
+          brand: cycle.brand,
+          model: cycle.model,
+          condition: cycle.condition,
+          hourlyRate: cycle.hourlyRate,
+          location: cycle.location,
+          isRented: cycle.isRented,
+          isActive: cycle.isActive,
+        }
+      });
+    }
+
+    // Check if user is trying to rent their own cycle
+    if (cycle.owner === userId) {
+      return res.status(400).json({ 
+        message: 'You cannot rent your own cycle', 
+        error: 'OWNER_RENTAL_NOT_ALLOWED' 
+      });
+    }
+
+    // Check if user has an active rental
+    const activeRental = await Rental.findOne({
+      renter: userId,
+      status: 'active'
+    });
+
+    if (activeRental) {
+      return res.status(400).json({ 
+        message: 'You already have an active rental', 
+        error: 'ACTIVE_RENTAL_EXISTS',
+        existingRental: {
+          _id: activeRental._id,
+          cycle: activeRental.cycle,
+          startTime: activeRental.startTime,
+        }
+      });
     }
 
     // Create the rental
+    const startTime = new Date();
     const rental = new Rental({
       cycle: cycleId,
       renter: userId,
       owner: cycle.owner,
-      startTime: new Date(),
+      startTime: startTime,
       status: 'active',
+      duration: 0, // Will be calculated when rental ends
+      totalCost: 0, // Will be calculated when rental ends
     });
 
     // Update cycle status
     cycle.isRented = true;
-    await cycle.save();
-    await rental.save();
+    
+    // Save both documents
+    await Promise.all([cycle.save(), rental.save()]);
 
-    res.status(201).json({ message: 'Cycle rented successfully', rental });
+    // Populate cycle details for response
+    await rental.populate('cycle');
+
+    res.status(201).json({ 
+      message: 'Cycle rented successfully',
+      rental,
+      cycle: {
+        _id: cycle._id,
+        brand: cycle.brand,
+        model: cycle.model,
+        condition: cycle.condition,
+        hourlyRate: cycle.hourlyRate,
+        location: cycle.location,
+        isRented: cycle.isRented,
+        isActive: cycle.isActive,
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error renting cycle', error: error.message });
+    console.error('Error in rentCycle:', error);
+    res.status(500).json({ 
+      message: 'Error renting cycle', 
+      error: error.message 
+    });
   }
 };
 

@@ -9,6 +9,7 @@ import ownerRoutes from './routes/ownerRoutes.js';
 import renterRoutes from './routes/renterRoutes.js';
 import cycleRoutes from './routes/cycleRoutes.js';
 import rentalRoutes from './routes/rentalRoutes.js';
+import qrRoutes from './routes/qrRoutes.js';
 
 // Import Firebase admin
 import './config/firebase.js';
@@ -56,6 +57,7 @@ app.use('/api/owner', ownerRoutes);
 app.use('/api/renter', renterRoutes);
 app.use('/api/cycles', cycleRoutes);
 app.use('/api/rentals', rentalRoutes);
+app.use('/api/qr', qrRoutes);
 
 // 404 handler
 app.use((req, res) => {
