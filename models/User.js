@@ -44,6 +44,11 @@ const userSchema = new Schema({
     required: [true, 'Address is required'],
     trim: true
   },
+  profilePicture: {
+    type: String,
+    default: null,
+    trim: true
+  },
   role: {
     type: String,
     enum: ['renter', 'owner'],

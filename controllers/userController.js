@@ -4,7 +4,7 @@ import User from '../models/User.js';
 export const createOrUpdateUser = async (req, res) => {
   try {
     console.log('Create/Update user profile:', req.body);
-    const { uid, email, name, studentId, department, phone, address } = req.body;
+    const { uid, email, name, studentId, department, phone, address, profilePicture } = req.body;
 
     // Validate required fields
     if (!uid || !email || !name) {
@@ -23,6 +23,9 @@ export const createOrUpdateUser = async (req, res) => {
       user.department = department;
       user.phone = phone;
       user.address = address;
+      if (profilePicture) {
+        user.profilePicture = profilePicture;
+      }
 
       await user.save();
 
@@ -40,6 +43,7 @@ export const createOrUpdateUser = async (req, res) => {
         department,
         phone,
         address,
+        profilePicture,
       });
 
       await user.save();
@@ -63,6 +67,42 @@ export const createOrUpdateUser = async (req, res) => {
 
     return res.status(500).json({
       message: 'Error processing request',
+      error: error.message,
+    });
+  }
+};
+
+// Update profile picture
+export const updateProfilePicture = async (req, res) => {
+  try {
+    const { uid, profilePicture } = req.body;
+
+    if (!uid || !profilePicture) {
+      return res.status(400).json({
+        message: 'Missing required fields',
+        error: 'MISSING_FIELDS',
+      });
+    }
+
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+        error: 'USER_NOT_FOUND',
+      });
+    }
+
+    user.profilePicture = profilePicture;
+    await user.save();
+
+    return res.json({
+      message: 'Profile picture updated successfully',
+      user,
+    });
+  } catch (error) {
+    console.error('Error updating profile picture:', error);
+    return res.status(500).json({
+      message: 'Error updating profile picture',
       error: error.message,
     });
   }
