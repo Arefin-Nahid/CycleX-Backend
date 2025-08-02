@@ -81,6 +81,7 @@ export const createSSLSession = async (req, res) => {
       ship_country: 'Bangladesh',
       ship_phone: customerInfo?.phone || '01XXXXXXXXX',
       multi_card_name: '',
+      shipping_method: 'NO', // Required field - NO since we don't ship physical items
       value_a: rentalId, // Store rental ID
       value_b: userId, // Store user ID
       value_c: 'cycle_rental', // Store payment type
@@ -411,6 +412,7 @@ export const testSSLCommerz = async (req, res) => {
       cus_postcode: '1000',
       cus_country: 'Bangladesh',
       cus_phone: '01712345678',
+      shipping_method: 'NO', // Required field - NO since we don't ship physical items
       success_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/success',
       fail_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/fail',
       cancel_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/cancel',
