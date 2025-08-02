@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Failed - CycleX</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+        .error-icon {
+            width: 80px;
+            height: 80px;
+            background: #f44336;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        .error-icon::before {
+            content: '✕';
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .error-info {
+            background: #fff5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #fed7d7;
+        }
+        .error-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .error-info p {
+            color: #666;
+            margin: 5px 0;
+        }
+        .retry-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-right: 10px;
+        }
+        .retry-btn:hover {
+            background: #d32f2f;
+        }
+        .close-btn {
+            background: #666;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .close-btn:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon"></div>
+        <h1>Payment Failed</h1>
+        <p>Sorry, your payment could not be processed. Please try again or contact support.</p>
+        
+        <div class="error-info">
+            <h3>Error Details</h3>
+            <p><strong>Status:</strong> <span style="color: #f44336;">Failed</span></p>
+            <p><strong>Transaction ID:</strong> <span id="transactionId"></span></p>
+            <p><strong>Error:</strong> <span id="error"></span></p>
+            <p><strong>Date:</strong> <span id="date"></span></p>
+        </div>
+        
+        <div>
+            <button class="retry-btn" onclick="retryPayment()">Try Again</button>
+            <button class="close-btn" onclick="closeWindow()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const transactionId = urlParams.get('transaction_id');
+        const error = urlParams.get('error');
+        
+        // Display error details
+        document.getElementById('transactionId').textContent = transactionId || 'N/A';
+        document.getElementById('error').textContent = error || 'Unknown error';
+        document.getElementById('date').textContent = new Date().toLocaleString();
+        
+        function retryPayment() {
+            // Redirect to app to retry payment
+            window.location.href = 'cycleX://payment-retry';
+        }
+        
+        function closeWindow() {
+            // Try to close the window
+            window.close();
+            
+            // If window.close() doesn't work, redirect to app
+            setTimeout(() => {
+                window.location.href = 'cycleX://payment-cancelled';
+            }, 1000);
+        }
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => {
+            closeWindow();
+        }, 10000);
+    </script>
+</body>
+</html> 
