@@ -159,11 +159,31 @@ export const createRental = async (req, res) => {
       });
     }
 
-    // Check if cycle is available
+    // Check if cycle is available and active
     if (cycle.isRented) {
       return res.status(400).json({
         message: 'Cycle is already rented',
         error: 'CYCLE_UNAVAILABLE',
+      });
+    }
+
+    if (!cycle.isActive) {
+      return res.status(400).json({
+        message: 'Cycle is not available for rent',
+        error: 'CYCLE_INACTIVE',
+      });
+    }
+
+    // Check if user already has an active rental
+    const existingActiveRental = await Rental.findOne({
+      renter: renterId,
+      status: 'active',
+    });
+
+    if (existingActiveRental) {
+      return res.status(400).json({
+        message: 'You already have an active rental. Please return your current cycle first.',
+        error: 'ACTIVE_RENTAL_EXISTS',
       });
     }
 
