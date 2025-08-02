@@ -67,6 +67,7 @@ export const createSSLSession = async (req, res) => {
       tran_id: transactionId,
       product_category: 'Cycle Rental',
       product_name: 'Cycle Rental Service', // Required field - product name
+      product_profile: 'non-physical-goods', // Required field - service-based business
       cus_name: customerInfo?.name || 'CycleX User',
       cus_email: customerInfo?.email || 'user@cyclex.com',
       cus_add1: customerInfo?.address || 'Dhaka, Bangladesh',
@@ -407,6 +408,7 @@ export const testSSLCommerz = async (req, res) => {
       tran_id: `TEST_${Date.now()}`,
       product_category: 'Test',
       product_name: 'Test Product', // Required field - product name
+      product_profile: 'non-physical-goods', // Required field - service-based business
       cus_name: 'Test User',
       cus_email: 'test@test.com',
       cus_add1: 'Test Address',
