@@ -504,3 +504,6 @@ export const getSSLPaymentStatus = async (req, res) => {
     });
   }
 }; 
+
+
+// Get SSL payment status
