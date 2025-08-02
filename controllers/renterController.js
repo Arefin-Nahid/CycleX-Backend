@@ -46,6 +46,15 @@ export const getDashboardStats = async (req, res) => {
 export const getActiveRentals = async (req, res) => {
   try {
     const userId = req.user.uid;
+    console.log('🔍 Fetching active rentals for user:', userId);
+
+    // Validate user ID
+    if (!userId) {
+      console.error('❌ No user ID provided');
+      return res.status(400).json({
+        message: 'User ID is required',
+      });
+    }
 
     const rentals = await Rental.find({
       renter: userId,
@@ -54,43 +63,67 @@ export const getActiveRentals = async (req, res) => {
       .populate('cycle')
       .sort({ startTime: -1 });
 
+    console.log(`🚴 Found ${rentals.length} active rentals for user ${userId}`);
+
+    // Log each rental for debugging
+    rentals.forEach((rental, index) => {
+      console.log(`📋 Rental ${index + 1}:`, {
+        id: rental._id,
+        status: rental.status,
+        startTime: rental.startTime,
+        cycle: rental.cycle?._id,
+        cycleBrand: rental.cycle?.brand,
+        cycleModel: rental.cycle?.model,
+      });
+    });
+
     const formattedRentals = rentals.map((rental) => {
       // Calculate real-time duration and cost
       const currentTime = new Date();
       const startTime = new Date(rental.startTime);
       const durationInMs = currentTime - startTime;
       const durationInHours = durationInMs / (1000 * 60 * 60);
-      const hourlyRate = rental.cycle.hourlyRate || 0;
+      const hourlyRate = rental.cycle?.hourlyRate || 0;
       const currentCost = durationInHours * hourlyRate;
 
-      return {
+      const formattedRental = {
         _id: rental._id,
         id: rental._id,
         cycle: {
-          _id: rental.cycle._id,
-          brand: rental.cycle.brand,
-          model: rental.cycle.model,
-          location: rental.cycle.location,
-          hourlyRate: rental.cycle.hourlyRate,
-          condition: rental.cycle.condition,
-          description: rental.cycle.description,
+          _id: rental.cycle?._id,
+          brand: rental.cycle?.brand,
+          model: rental.cycle?.model,
+          location: rental.cycle?.location,
+          hourlyRate: rental.cycle?.hourlyRate,
+          condition: rental.cycle?.condition,
+          description: rental.cycle?.description,
         },
-        model: `${rental.cycle.brand} ${rental.cycle.model}`,
+        model: `${rental.cycle?.brand || 'Unknown'} ${rental.cycle?.model || 'Cycle'}`,
         startTime: rental.startTime,
         duration: Math.round(durationInHours * 100) / 100, // Real-time duration in hours
         durationInMinutes: Math.floor(durationInMs / (1000 * 60)), // Duration in minutes
         cost: Math.round(currentCost * 100) / 100, // Real-time cost
-        location: rental.cycle.location,
-        hourlyRate: rental.cycle.hourlyRate,
+        location: rental.cycle?.location,
+        hourlyRate: rental.cycle?.hourlyRate,
         status: rental.status,
         renter: rental.renter,
         owner: rental.owner,
       };
+
+      console.log(`📊 Formatted rental:`, {
+        id: formattedRental._id,
+        model: formattedRental.model,
+        duration: formattedRental.duration,
+        cost: formattedRental.cost,
+      });
+
+      return formattedRental;
     });
 
+    console.log('✅ Active rentals formatted successfully');
     res.json({ rentals: formattedRentals });
   } catch (error) {
-    console.error('Error fetching active rentals:', error);
+    console.error('❌ Error fetching active rentals:', error);
     res.status(500).json({
       message: 'Error fetching active rentals',
       error: error.message,
