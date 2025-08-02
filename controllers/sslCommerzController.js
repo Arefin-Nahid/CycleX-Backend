@@ -215,9 +215,29 @@ export const sslSuccess = async (req, res) => {
     const payment = await Payment.findOne({ transactionId: tran_id });
     if (!payment) {
       console.error('❌ Payment not found for transaction:', tran_id);
-      // Instead of returning 404 error, serve success page
-      // The payment might be created later via IPN or other callbacks
-      return res.sendFile('public/payment-success.html', { root: '.' });
+      // Return simple HTML response instead of trying to serve a file
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Payment Successful</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+            .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+            .success { color: #4CAF50; font-size: 24px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓ Payment Successful!</div>
+            <p>Your payment has been processed successfully.</p>
+            <p>Transaction ID: ${tran_id}</p>
+            <p>Amount: ৳${amount}</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
     // Verify the payment with SSLCommerz
@@ -265,16 +285,79 @@ export const sslSuccess = async (req, res) => {
 
       console.log('✅ Payment verified and completed successfully');
 
-      // Serve success HTML page
-      res.sendFile('public/payment-success.html', { root: '.' });
+      // Return simple HTML response instead of trying to serve a file
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Payment Successful</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+            .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+            .success { color: #4CAF50; font-size: 24px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓ Payment Successful!</div>
+            <p>Your payment has been processed successfully.</p>
+            <p>Transaction ID: ${tran_id}</p>
+            <p>Amount: ৳${amount}</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+          </div>
+        </body>
+        </html>
+      `);
     } else {
       console.error('❌ Payment verification failed:', verifyResponse.data);
-      res.sendFile('public/payment-failed.html', { root: '.' });
+      // Return simple HTML response for failed payment
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Payment Failed</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+            .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+            .error { color: #f44336; font-size: 24px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error">✗ Payment Failed</div>
+            <p>Your payment could not be processed.</p>
+            <p>Transaction ID: ${tran_id}</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
   } catch (error) {
     console.error('❌ Error in SSL success callback:', error);
-    res.sendFile('public/payment-failed.html', { root: '.' });
+    // Return simple HTML response for error
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Error</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+          .error { color: #f44336; font-size: 24px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="error">⚠ Payment Error</div>
+          <p>An error occurred while processing your payment.</p>
+          <p>Please try again or contact support.</p>
+          <script>setTimeout(() => window.close(), 3000);</script>
+        </div>
+      </body>
+      </html>
+    `);
   }
 };
 
@@ -296,10 +379,53 @@ export const sslFail = async (req, res) => {
       await payment.save();
     }
 
-    res.sendFile('public/payment-failed.html', { root: '.' });
+    // Return simple HTML response instead of trying to serve a file
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Failed</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+          .error { color: #f44336; font-size: 24px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="error">✗ Payment Failed</div>
+          <p>Your payment could not be processed.</p>
+          <p>Transaction ID: ${tran_id}</p>
+          <p>Error: ${error || 'Unknown error'}</p>
+          <script>setTimeout(() => window.close(), 3000);</script>
+        </div>
+      </body>
+      </html>
+    `);
   } catch (error) {
     console.error('❌ Error in SSL fail callback:', error);
-    res.sendFile('public/payment-failed.html', { root: '.' });
+    // Return simple HTML response for error
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Error</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+          .error { color: #f44336; font-size: 24px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="error">⚠ Payment Error</div>
+          <p>An error occurred while processing your payment.</p>
+          <p>Please try again or contact support.</p>
+          <script>setTimeout(() => window.close(), 3000);</script>
+        </div>
+      </body>
+      </html>
+    `);
   }
 };
 
@@ -320,10 +446,52 @@ export const sslCancel = async (req, res) => {
       await payment.save();
     }
 
-    res.sendFile('public/payment-failed.html', { root: '.' });
+    // Return simple HTML response instead of trying to serve a file
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Cancelled</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+          .warning { color: #ff9800; font-size: 24px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="warning">⚠ Payment Cancelled</div>
+          <p>Your payment was cancelled.</p>
+          <p>Transaction ID: ${tran_id}</p>
+          <script>setTimeout(() => window.close(), 3000);</script>
+        </div>
+      </body>
+      </html>
+    `);
   } catch (error) {
     console.error('❌ Error in SSL cancel callback:', error);
-    res.sendFile('public/payment-failed.html', { root: '.' });
+    // Return simple HTML response for error
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Error</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+          .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+          .error { color: #f44336; font-size: 24px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="error">⚠ Payment Error</div>
+          <p>An error occurred while processing your payment.</p>
+          <p>Please try again or contact support.</p>
+          <script>setTimeout(() => window.close(), 3000);</script>
+        </div>
+      </body>
+      </html>
+    `);
   }
 };
 

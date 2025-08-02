@@ -2,6 +2,8 @@ import express, { json } from 'express';
 import { connect } from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Import routes
 import userRoutes from './routes/userRoutes.js';
@@ -22,6 +24,47 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(json());
+
+// Static file serving with error handling
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static files from public directory with error handling
+app.use('/public', (req, res, next) => {
+  const filePath = path.join(__dirname, 'public', req.path);
+  
+  // Check if file exists
+  import('fs').then(fs => {
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      // Return a simple HTML response if file doesn't exist
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Page Not Found</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+            .container { background: white; padding: 30px; border-radius: 10px; max-width: 400px; margin: 0 auto; }
+            .error { color: #f44336; font-size: 24px; margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error">⚠ Page Not Found</div>
+            <p>The requested page could not be found.</p>
+            <script>setTimeout(() => window.close(), 3000);</script>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+  }).catch(err => {
+    console.error('Error serving static file:', err);
+    res.status(500).send('Internal Server Error');
+  });
+});
 
 // Vercel check route
 app.get('/', (req, res) => {
