@@ -88,7 +88,7 @@ export const getActiveRentals = async (req, res) => {
       };
     });
 
-    res.json({ rentals: formattedRentals });
+    res.json(formattedRentals);
   } catch (error) {
     console.error('Error fetching active rentals:', error);
     res.status(500).json({

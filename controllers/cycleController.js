@@ -282,6 +282,8 @@ export const rentCycleByQR = async (req, res) => {
     const userId = req.user.uid;
 
     console.log(`🔍 Starting rental process for cycle: ${cycleId} by user: ${userId}`);
+    console.log(`🔍 Request body:`, req.body);
+    console.log(`🔍 User ID: ${userId}`);
 
     // Validate input
     if (!cycleId) {
@@ -305,6 +307,23 @@ export const rentCycleByQR = async (req, res) => {
 
     console.log('🔍 Finding cycle in database...');
 
+    console.log(`🔍 Checking cycle availability for ID: ${cycleId}`);
+    
+    // First, let's check if the cycle exists and its current status
+    const existingCycle = await Cycle.findById(cycleId);
+    if (existingCycle) {
+      console.log(`🔍 Cycle found:`, {
+        id: existingCycle._id,
+        brand: existingCycle.brand,
+        model: existingCycle.model,
+        isActive: existingCycle.isActive,
+        isRented: existingCycle.isRented,
+        owner: existingCycle.owner
+      });
+    } else {
+      console.log(`❌ Cycle not found with ID: ${cycleId}`);
+    }
+    
     // Use findOneAndUpdate with session for atomic operation
     // This prevents race conditions by ensuring only one user can rent a cycle at a time
     const cycle = await Cycle.findOneAndUpdate(
