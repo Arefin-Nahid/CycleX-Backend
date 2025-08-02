@@ -46,15 +46,6 @@ export const getDashboardStats = async (req, res) => {
 export const getActiveRentals = async (req, res) => {
   try {
     const userId = req.user.uid;
-    console.log('🔍 Fetching active rentals for user:', userId);
-
-    // Validate user ID
-    if (!userId) {
-      console.error('❌ No user ID provided');
-      return res.status(400).json({
-        message: 'User ID is required',
-      });
-    }
 
     const rentals = await Rental.find({
       renter: userId,
@@ -63,67 +54,43 @@ export const getActiveRentals = async (req, res) => {
       .populate('cycle')
       .sort({ startTime: -1 });
 
-    console.log(`🚴 Found ${rentals.length} active rentals for user ${userId}`);
-
-    // Log each rental for debugging
-    rentals.forEach((rental, index) => {
-      console.log(`📋 Rental ${index + 1}:`, {
-        id: rental._id,
-        status: rental.status,
-        startTime: rental.startTime,
-        cycle: rental.cycle?._id,
-        cycleBrand: rental.cycle?.brand,
-        cycleModel: rental.cycle?.model,
-      });
-    });
-
     const formattedRentals = rentals.map((rental) => {
       // Calculate real-time duration and cost
       const currentTime = new Date();
       const startTime = new Date(rental.startTime);
       const durationInMs = currentTime - startTime;
       const durationInHours = durationInMs / (1000 * 60 * 60);
-      const hourlyRate = rental.cycle?.hourlyRate || 0;
+      const hourlyRate = rental.cycle.hourlyRate || 0;
       const currentCost = durationInHours * hourlyRate;
 
-      const formattedRental = {
+      return {
         _id: rental._id,
         id: rental._id,
         cycle: {
-          _id: rental.cycle?._id,
-          brand: rental.cycle?.brand,
-          model: rental.cycle?.model,
-          location: rental.cycle?.location,
-          hourlyRate: rental.cycle?.hourlyRate,
-          condition: rental.cycle?.condition,
-          description: rental.cycle?.description,
+          _id: rental.cycle._id,
+          brand: rental.cycle.brand,
+          model: rental.cycle.model,
+          location: rental.cycle.location,
+          hourlyRate: rental.cycle.hourlyRate,
+          condition: rental.cycle.condition,
+          description: rental.cycle.description,
         },
-        model: `${rental.cycle?.brand || 'Unknown'} ${rental.cycle?.model || 'Cycle'}`,
+        model: `${rental.cycle.brand} ${rental.cycle.model}`,
         startTime: rental.startTime,
         duration: Math.round(durationInHours * 100) / 100, // Real-time duration in hours
         durationInMinutes: Math.floor(durationInMs / (1000 * 60)), // Duration in minutes
         cost: Math.round(currentCost * 100) / 100, // Real-time cost
-        location: rental.cycle?.location,
-        hourlyRate: rental.cycle?.hourlyRate,
+        location: rental.cycle.location,
+        hourlyRate: rental.cycle.hourlyRate,
         status: rental.status,
         renter: rental.renter,
         owner: rental.owner,
       };
-
-      console.log(`📊 Formatted rental:`, {
-        id: formattedRental._id,
-        model: formattedRental.model,
-        duration: formattedRental.duration,
-        cost: formattedRental.cost,
-      });
-
-      return formattedRental;
     });
 
-    console.log('✅ Active rentals formatted successfully');
     res.json({ rentals: formattedRentals });
   } catch (error) {
-    console.error('❌ Error fetching active rentals:', error);
+    console.error('Error fetching active rentals:', error);
     res.status(500).json({
       message: 'Error fetching active rentals',
       error: error.message,
@@ -192,31 +159,11 @@ export const createRental = async (req, res) => {
       });
     }
 
-    // Check if cycle is available and active
+    // Check if cycle is available
     if (cycle.isRented) {
       return res.status(400).json({
         message: 'Cycle is already rented',
         error: 'CYCLE_UNAVAILABLE',
-      });
-    }
-
-    if (!cycle.isActive) {
-      return res.status(400).json({
-        message: 'Cycle is not available for rent',
-        error: 'CYCLE_INACTIVE',
-      });
-    }
-
-    // Check if user already has an active rental
-    const existingActiveRental = await Rental.findOne({
-      renter: renterId,
-      status: 'active',
-    });
-
-    if (existingActiveRental) {
-      return res.status(400).json({
-        message: 'You already have an active rental. Please return your current cycle first.',
-        error: 'ACTIVE_RENTAL_EXISTS',
       });
     }
 
@@ -263,12 +210,9 @@ export const cancelRental = async (req, res) => {
     const { rentalId } = req.params;
     const userId = req.user.uid;
 
-    console.log(`🔍 Cancelling rental: ${rentalId} by user: ${userId}`);
-
     // Find the rental
     const rental = await Rental.findById(rentalId);
     if (!rental) {
-      console.log('❌ Rental not found:', rentalId);
       return res.status(404).json({
         message: 'Rental not found',
         error: 'RENTAL_NOT_FOUND',
@@ -277,7 +221,6 @@ export const cancelRental = async (req, res) => {
 
     // Check if the user is authorized to cancel the rental
     if (rental.renter !== userId) {
-      console.log('❌ User not authorized to cancel rental');
       return res.status(403).json({
         message: 'Not authorized to cancel this rental',
         error: 'FORBIDDEN',
@@ -286,7 +229,6 @@ export const cancelRental = async (req, res) => {
 
     // Check if the rental is still active
     if (rental.status !== 'active') {
-      console.log('❌ Rental is not active, status:', rental.status);
       return res.status(400).json({
         message: 'Cannot cancel a rental that is not active',
         error: 'INVALID_STATUS',
@@ -295,27 +237,19 @@ export const cancelRental = async (req, res) => {
 
     // Update rental status and cycle availability
     rental.status = 'cancelled';
-    await rental.save();
-    console.log('✅ Rental status updated to cancelled');
-
-    // Reset cycle status
     const cycle = await Cycle.findById(rental.cycle);
     if (cycle) {
       cycle.isRented = false;
-      cycle.currentRenter = null;
-      cycle.lastRentedAt = null;
       await cycle.save();
-      console.log('✅ Cycle status reset successfully');
-    } else {
-      console.log('⚠️ Cycle not found for reset:', rental.cycle);
     }
+
+    await rental.save();
 
     res.json({
       message: 'Rental cancelled successfully',
       rental,
     });
   } catch (error) {
-    console.error('❌ Error cancelling rental:', error);
     res.status(500).json({
       message: 'Error cancelling rental',
       error: error.message,
@@ -451,12 +385,9 @@ export const completeRental = async (req, res) => {
     const { distance } = req.body; // Optional distance parameter
     const userId = req.user.uid;
 
-    console.log(`🔍 Completing rental: ${rentalId} by user: ${userId}`);
-
     // Find the rental and populate cycle for hourly rate
     const rental = await Rental.findById(rentalId).populate('cycle');
     if (!rental) {
-      console.log('❌ Rental not found:', rentalId);
       return res.status(404).json({
         message: 'Rental not found',
         error: 'RENTAL_NOT_FOUND',
@@ -465,7 +396,6 @@ export const completeRental = async (req, res) => {
 
     // Check if the user is authorized to complete the rental
     if (rental.renter !== userId) {
-      console.log('❌ User not authorized to complete rental');
       return res.status(403).json({
         message: 'Not authorized to complete this rental',
         error: 'FORBIDDEN',
@@ -474,7 +404,6 @@ export const completeRental = async (req, res) => {
 
     // Check if the rental is still active
     if (rental.status !== 'active') {
-      console.log('❌ Rental is not active, status:', rental.status);
       return res.status(400).json({
         message: 'Cannot complete a rental that is not active',
         error: 'INVALID_STATUS',
@@ -488,8 +417,6 @@ export const completeRental = async (req, res) => {
     const hourlyRate = rental.cycle.hourlyRate || 0;
     const totalCost = durationInHours * hourlyRate;
 
-    console.log(`📊 Rental completion details: Duration=${durationInMinutes}min, Cost=${totalCost}`);
-
     // Update rental with completion data
     rental.status = 'completed';
     rental.endTime = endTime;
@@ -498,18 +425,12 @@ export const completeRental = async (req, res) => {
     rental.totalCost = totalCost;
     await rental.save();
 
-    console.log('✅ Rental updated successfully');
-
-    // Update cycle status - ensure it's properly reset
+    // Update cycle status
     const cycle = await Cycle.findById(rental.cycle._id);
     if (cycle) {
       cycle.isRented = false;
       cycle.currentRenter = null;
-      cycle.lastRentedAt = null;
       await cycle.save();
-      console.log('✅ Cycle status reset successfully');
-    } else {
-      console.log('⚠️ Cycle not found for reset:', rental.cycle._id);
     }
 
     res.json({
@@ -531,7 +452,7 @@ export const completeRental = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('❌ Error completing rental:', error);
+    console.error('Error completing rental:', error);
     res.status(500).json({
       message: 'Error completing rental',
       error: error.message,
@@ -566,54 +487,6 @@ export const getRentalHistory = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching rental history',
-      error: error.message,
-    });
-  }
-};
-
-// Utility endpoint to fix orphaned cycles (for debugging)
-export const fixOrphanedCycles = async (req, res) => {
-  try {
-    console.log('🔧 Fixing orphaned cycles...');
-    
-    // Find cycles that are marked as rented but have no active rentals
-    const orphanedCycles = await Cycle.find({
-      isRented: true,
-      currentRenter: { $exists: true, $ne: null }
-    });
-
-    console.log(`🔍 Found ${orphanedCycles.length} potentially orphaned cycles`);
-
-    let fixedCount = 0;
-    for (const cycle of orphanedCycles) {
-      // Check if there's an active rental for this cycle
-      const activeRental = await Rental.findOne({
-        cycle: cycle._id,
-        status: 'active'
-      });
-
-      if (!activeRental) {
-        // This cycle is orphaned - reset it
-        cycle.isRented = false;
-        cycle.currentRenter = null;
-        cycle.lastRentedAt = null;
-        await cycle.save();
-        fixedCount++;
-        console.log(`✅ Fixed orphaned cycle: ${cycle._id}`);
-      }
-    }
-
-    console.log(`✅ Fixed ${fixedCount} orphaned cycles`);
-
-    res.json({
-      message: `Fixed ${fixedCount} orphaned cycles`,
-      fixedCount,
-      totalOrphaned: orphanedCycles.length
-    });
-  } catch (error) {
-    console.error('❌ Error fixing orphaned cycles:', error);
-    res.status(500).json({
-      message: 'Error fixing orphaned cycles',
       error: error.message,
     });
   }

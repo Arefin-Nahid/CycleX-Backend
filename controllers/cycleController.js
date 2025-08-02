@@ -320,8 +320,7 @@ export const rentCycleByQR = async (req, res) => {
       },
       { 
         new: true, 
-        session, // Use transaction session
-        runValidators: true // Run schema validators
+        session // Use transaction session
       }
     );
 
@@ -376,10 +375,6 @@ export const rentCycleByQR = async (req, res) => {
       renter: userId,
       owner: cycle.owner,
       startTime: new Date(),
-      endTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Default 24 hours from now
-      duration: 0, // Will be calculated when rental ends
-      distance: 0, // Will be updated when rental ends
-      totalCost: 0, // Will be calculated when rental ends
       status: 'active',
       hourlyRate: cycle.hourlyRate
     });
