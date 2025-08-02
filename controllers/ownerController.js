@@ -106,97 +106,29 @@ export const getMyCycles = async (req, res) => {
 export const getRecentActivities = async (req, res) => {
   try {
     const userId = req.user.uid;
-    
-    // Get recent rentals with more details
     const recentRentals = await Rental.find({ owner: userId })
       .sort({ createdAt: -1 })
-      .limit(10)
-      .populate('cycle')
-      .populate('renter', 'name');
+      .limit(5)
+      .populate('cycle');
 
-    // Get recent cycle activities
-    const recentCycles = await Cycle.find({ owner: userId })
-      .sort({ updatedAt: -1 })
-      .limit(5);
+    const activities = recentRentals.map((rental) => ({
+      type:
+        rental.status === 'active'
+          ? 'rental_request'
+          : rental.rating
+          ? 'review'
+          : 'payment',
+      title:
+        rental.status === 'active'
+          ? 'New Rental Request'
+          : rental.rating
+          ? `${rental.rating}★ Review Received`
+          : 'Payment Received',
+      description: `${rental.cycle.brand} ${rental.cycle.model}`,
+      time: rental.createdAt,
+    }));
 
-    const activities = [];
-
-    // Add rental activities
-    recentRentals.forEach((rental) => {
-      let activityType, title, description;
-      
-      switch (rental.status) {
-        case 'active':
-          activityType = 'rental_request';
-          title = 'New Rental Started';
-          description = `${rental.cycle.brand} ${rental.cycle.model} - ${rental.duration} hours`;
-          break;
-        case 'completed':
-          if (rental.rating) {
-            activityType = 'review';
-            title = `${rental.rating}★ Review Received`;
-            description = `${rental.cycle.brand} ${rental.cycle.model} - ${rental.review || 'No comment'}`;
-          } else {
-            activityType = 'payment';
-            title = 'Rental Completed';
-            description = `${rental.cycle.brand} ${rental.cycle.model} - ৳${rental.totalCost}`;
-          }
-          break;
-        case 'cancelled':
-          activityType = 'rental_cancelled';
-          title = 'Rental Cancelled';
-          description = `${rental.cycle.brand} ${rental.cycle.model}`;
-          break;
-        default:
-          activityType = 'rental_update';
-          title = 'Rental Updated';
-          description = `${rental.cycle.brand} ${rental.cycle.model}`;
-      }
-
-      activities.push({
-        type: activityType,
-        title: title,
-        description: description,
-        time: rental.createdAt,
-        rentalId: rental._id,
-        cycleModel: `${rental.cycle.brand} ${rental.cycle.model}`,
-        status: rental.status,
-        amount: rental.totalCost,
-        rating: rental.rating,
-        duration: rental.duration,
-      });
-    });
-
-    // Add cycle management activities
-    recentCycles.forEach((cycle) => {
-      if (cycle.updatedAt > cycle.createdAt) {
-        activities.push({
-          type: 'cycle_updated',
-          title: 'Cycle Updated',
-          description: `${cycle.brand} ${cycle.model} - ${cycle.isActive ? 'Activated' : 'Deactivated'}`,
-          time: cycle.updatedAt,
-          cycleId: cycle._id,
-          cycleModel: `${cycle.brand} ${cycle.model}`,
-          status: cycle.isActive ? 'active' : 'inactive',
-        });
-      } else {
-        activities.push({
-          type: 'cycle_added',
-          title: 'New Cycle Added',
-          description: `${cycle.brand} ${cycle.model} - ৳${cycle.hourlyRate}/hour`,
-          time: cycle.createdAt,
-          cycleId: cycle._id,
-          cycleModel: `${cycle.brand} ${cycle.model}`,
-          hourlyRate: cycle.hourlyRate,
-        });
-      }
-    });
-
-    // Sort all activities by time and take the most recent 8
-    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
-    const recentActivities = activities.slice(0, 8);
-
-    res.json({ activities: recentActivities });
+    res.json({ activities });
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching activities',
@@ -252,13 +184,11 @@ export const getRentalHistory = async (req, res) => {
     const userId = req.user.uid;
     const rentals = await Rental.find({ owner: userId })
       .populate('cycle')
-      .populate('renter', 'name email phone')
       .sort({ createdAt: -1 });
 
     const formattedRentals = rentals.map((rental) => ({
       _id: rental._id,
       cycleModel: `${rental.cycle.brand} ${rental.cycle.model}`,
-      cycleId: rental.cycle._id,
       duration: rental.duration,
       totalCost: rental.totalCost,
       status: rental.status,
@@ -267,28 +197,6 @@ export const getRentalHistory = async (req, res) => {
       rating: rental.rating,
       review: rental.review,
       location: rental.cycle.location,
-      coordinates: rental.cycle.coordinates,
-      hourlyRate: rental.cycle.hourlyRate,
-      condition: rental.cycle.condition,
-      renter: rental.renter ? {
-        name: rental.renter.name,
-        email: rental.renter.email,
-        phone: rental.renter.phone,
-      } : null,
-      createdAt: rental.createdAt,
-      updatedAt: rental.updatedAt,
-      // Calculate earnings for completed rentals
-      earnings: rental.status === 'completed' ? rental.totalCost : 0,
-      // Calculate duration in hours for display
-      durationHours: rental.duration || 0,
-      // Add cycle details
-      cycleDetails: {
-        brand: rental.cycle.brand,
-        model: rental.cycle.model,
-        condition: rental.cycle.condition,
-        hourlyRate: rental.cycle.hourlyRate,
-        description: rental.cycle.description,
-      }
     }));
 
     res.json({ rentals: formattedRentals });
