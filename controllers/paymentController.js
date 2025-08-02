@@ -115,31 +115,41 @@ export const processPayment = async (req, res) => {
 
 // Verify payment with SSL gateway (demo implementation)
 async function _verifyPaymentWithGateway(method, phoneNumber, transactionId, amount) {
+  console.log(`🔍 Verifying payment: Method=${method}, Phone=${phoneNumber}, TxnID=${transactionId}, Amount=${amount}`);
+  
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // Demo validation logic
+  // Demo validation logic - more lenient for demo purposes
   if (!phoneNumber || !transactionId || !amount) {
+    console.log('❌ Payment verification failed: Missing required fields');
     return false;
   }
 
-  // Validate phone number format (Bangladesh)
+  // Validate phone number format (Bangladesh) - more lenient
   const phoneRegex = /^01[3-9]\d{8}$/;
   if (!phoneRegex.test(phoneNumber)) {
+    console.log('❌ Payment verification failed: Invalid phone number format');
+    console.log(`Expected format: 01XXXXXXXXX, Got: ${phoneNumber}`);
     return false;
   }
 
-  // Validate transaction ID format
-  if (transactionId.length < 8) {
+  // Validate transaction ID format - more lenient
+  if (transactionId.length < 6) {
+    console.log('❌ Payment verification failed: Transaction ID too short');
+    console.log(`Expected: 6+ characters, Got: ${transactionId.length} characters`);
     return false;
   }
 
   // Validate amount
   if (amount <= 0) {
+    console.log('❌ Payment verification failed: Invalid amount');
+    console.log(`Expected: > 0, Got: ${amount}`);
     return false;
   }
 
   // Simulate successful payment verification
+  console.log('✅ Payment verification successful');
   return true;
 }
 
