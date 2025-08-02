@@ -100,12 +100,20 @@ export const createSSLSession = async (req, res) => {
       store_id: sessionData.store_id,
       total_amount: sessionData.total_amount,
       tran_id: sessionData.tran_id,
+      success_url: sessionData.success_url,
+      fail_url: sessionData.fail_url,
+      cancel_url: sessionData.cancel_url,
     });
 
     // Create session with SSLCommerz
+    const formData = new URLSearchParams();
+    Object.keys(sessionData).forEach(key => {
+      formData.append(key, sessionData[key]);
+    });
+
     const sslResponse = await axios.post(
-      `${SSLCOMMERZ_CONFIG.base_url}/gwprocess/v4/api.php`,
-      sessionData,
+      `${SSLCOMMERZ_CONFIG.base_url}/gwprocess/v3/api.php`,
+      formData,
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -115,6 +123,10 @@ export const createSSLSession = async (req, res) => {
     );
 
     console.log('📥 SSLCommerz response:', sslResponse.data);
+
+    if (!sslResponse.data) {
+      throw new Error('No response from SSLCommerz');
+    }
 
     if (sslResponse.data.status === 'VALID' || sslResponse.data.status === 'INVALID_TRANSACTION') {
       // Create pending payment record
@@ -158,6 +170,20 @@ export const createSSLSession = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error creating SSL session:', error);
+    
+    // Log more details for debugging
+    if (error.response) {
+      console.error('❌ SSLCommerz API Error Response:', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers,
+      });
+    } else if (error.request) {
+      console.error('❌ SSLCommerz API Request Error:', error.request);
+    } else {
+      console.error('❌ SSLCommerz API Error:', error.message);
+    }
+    
     res.status(500).json({
       message: 'Error creating payment session',
       error: error.message,
