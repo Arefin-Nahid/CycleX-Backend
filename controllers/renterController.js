@@ -484,27 +484,80 @@ export const getRentalHistory = async (req, res) => {
   try {
     const userId = req.user.uid;
 
-    // Find all rentals for the user
+    console.log(`🔍 Fetching rental history for user: ${userId}`);
+
+    // Find all rentals for the user with populated cycle details
     const rentals = await Rental.find({ renter: userId })
       .populate('cycle') // Populate cycle details
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(50); // Limit to prevent performance issues
 
-    // Format the rental history data
-    const formattedRentals = rentals.map((rental) => ({
-      _id: rental._id,
-      cycleModel: `${rental.cycle.brand} ${rental.cycle.model}`,
-      duration: rental.duration,
-      totalCost: rental.totalCost,
-      status: rental.status,
-      startTime: rental.startTime,
-      endTime: rental.endTime,
-      rating: rental.rating || null,
-      review: rental.review || null,
-      location: rental.cycle.location,
-    }));
+    console.log(`📊 Found ${rentals.length} rentals for user`);
 
-    res.json({ rentals: formattedRentals });
+    // Format the rental history data with enhanced information
+    const formattedRentals = rentals.map((rental) => {
+      const cycle = rental.cycle || {};
+      const startTime = rental.startTime || new Date();
+      const endTime = rental.endTime || null;
+      
+      // Calculate duration if not available
+      let duration = rental.duration;
+      if (!duration && endTime) {
+        duration = Math.ceil((endTime - startTime) / (1000 * 60)); // in minutes
+      }
+
+      // Calculate distance if not available (estimate based on duration)
+      let distance = rental.distance;
+      if (!distance && duration) {
+        distance = Math.max(0.5, (duration / 60) * 10); // ~10 km/h average
+      }
+
+      return {
+        _id: rental._id,
+        cycleModel: `${cycle.brand || 'Unknown'} ${cycle.model || 'Cycle'}`,
+        duration: duration || 0,
+        distance: distance || 0,
+        totalCost: rental.totalCost || 0,
+        status: rental.status || 'unknown',
+        startTime: startTime,
+        endTime: endTime,
+        rating: rental.rating || null,
+        review: rental.review || null,
+        location: cycle.location || 'Unknown Location',
+        paymentStatus: rental.paymentStatus || 'pending',
+        createdAt: rental.createdAt,
+        updatedAt: rental.updatedAt,
+      };
+    });
+
+    console.log(`✅ Rental history formatted successfully`);
+
+    // Calculate summary statistics
+    const stats = {
+      totalRentals: rentals.length,
+      totalSpent: rentals.reduce((sum, rental) => sum + (rental.totalCost || 0), 0),
+      totalDistance: rentals.reduce((sum, rental) => sum + (rental.distance || 0), 0),
+      totalDuration: rentals.reduce((sum, rental) => sum + (rental.duration || 0), 0),
+      completedRentals: rentals.filter(r => r.status === 'completed').length,
+      cancelledRentals: rentals.filter(r => r.status === 'cancelled').length,
+      activeRentals: rentals.filter(r => r.status === 'active').length,
+      averageRating: 0,
+    };
+
+    // Calculate average rating
+    const ratedRentals = rentals.filter(r => r.rating && r.rating > 0);
+    if (ratedRentals.length > 0) {
+      stats.averageRating = ratedRentals.reduce((sum, rental) => sum + rental.rating, 0) / ratedRentals.length;
+    }
+
+    console.log(`📊 Rental history stats calculated:`, stats);
+
+    res.json({ 
+      rentals: formattedRentals,
+      stats: stats,
+    });
   } catch (error) {
+    console.error('❌ Error fetching rental history:', error);
     res.status(500).json({
       message: 'Error fetching rental history',
       error: error.message,
