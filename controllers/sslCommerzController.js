@@ -147,6 +147,7 @@ export const createSSLSession = async (req, res) => {
         user: userId,
         amount: providedAmount,
         paymentMethod: 'sslcommerz',
+        phoneNumber: customerInfo?.phone || 'N/A', // Add phone number
         transactionId: transactionId,
         status: 'pending',
         gatewayResponse: {

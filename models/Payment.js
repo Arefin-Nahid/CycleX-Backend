@@ -16,12 +16,12 @@ const paymentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['bkash', 'nagad', 'rocket', 'card', 'cash'],
+    enum: ['bkash', 'nagad', 'rocket', 'card', 'cash', 'sslcommerz'],
     required: true,
   },
   phoneNumber: {
     type: String,
-    required: true,
+    required: false, // Optional for SSLCommerz payments
   },
   transactionId: {
     type: String,
