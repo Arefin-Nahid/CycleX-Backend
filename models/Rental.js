@@ -41,6 +41,15 @@ const rentalSchema = new Schema({
     enum: ['active', 'completed', 'cancelled'],
     default: 'active'
   },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'failed'],
+    default: 'pending'
+  },
+  paymentId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Payment'
+  },
   rating: {
     type: Number,
     min: 1,

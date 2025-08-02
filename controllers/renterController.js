@@ -434,15 +434,15 @@ export const completeRental = async (req, res) => {
     const endTime = new Date();
     const durationInMinutes = Math.ceil((endTime - rental.startTime) / (1000 * 60)); // Duration in minutes
     const durationInHours = Math.ceil(durationInMinutes / 60); // Round up to the nearest hour for billing
-    const hourlyRate = rental.cycle.hourlyRate || 0;
-    const totalCost = durationInHours * hourlyRate;
+    const hourlyRate = parseFloat(rental.cycle.hourlyRate) || 0.0;
+    const totalCost = parseFloat(durationInHours * hourlyRate);
 
     // Update rental with completion data
     rental.status = 'completed';
     rental.endTime = endTime;
     rental.duration = durationInMinutes; // Store duration in minutes
-    rental.distance = distance || Math.max(1, Math.round(durationInMinutes / 30)); // Default: ~2km per hour if not provided
-    rental.totalCost = totalCost;
+    rental.distance = parseFloat(distance) || parseFloat(Math.max(1, Math.round(durationInMinutes / 30))); // Default: ~2km per hour if not provided
+    rental.totalCost = parseFloat(totalCost);
     await rental.save();
 
     // Update cycle status
