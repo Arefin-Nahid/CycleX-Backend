@@ -13,18 +13,28 @@ export const getDashboardStats = async (req, res) => {
       status: 'completed',
     });
 
-    // Calculate stats
+    // Calculate comprehensive stats
     const totalRides = completedRentals.length;
-    const totalSpent = completedRentals.reduce(
-      (sum, rental) => sum + rental.totalCost,
-      0
-    );
+    const totalSpent = completedRentals.reduce((sum, rental) => sum + (rental.totalCost || 0), 0);
+    const totalRideTime = completedRentals.reduce((sum, rental) => sum + (rental.duration || 0), 0); // in minutes
+    const totalDistance = completedRentals.reduce((sum, rental) => sum + (rental.distance || 0), 0); // in kilometers
+
+    // Calculate average stats if there are rides
+    const averageRideTime = totalRides > 0 ? Math.round(totalRideTime / totalRides) : 0;
+    const averageCostPerRide = totalRides > 0 ? Math.round((totalSpent / totalRides) * 100) / 100 : 0;
+    const averageDistance = totalRides > 0 ? Math.round((totalDistance / totalRides) * 10) / 10 : 0;
 
     res.json({
       totalRides,
-      totalSpent,
+      totalSpent: Math.round(totalSpent * 100) / 100, // Round to 2 decimal places
+      totalRideTime, // in minutes
+      totalDistance: Math.round(totalDistance * 10) / 10, // Round to 1 decimal place
+      averageRideTime, // in minutes
+      averageCostPerRide,
+      averageDistance, // in kilometers
     });
   } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
     res.status(500).json({
       message: 'Error fetching dashboard stats',
       error: error.message,
@@ -99,19 +109,34 @@ export const getRecentRides = async (req, res) => {
     })
       .populate('cycle')
       .sort({ endTime: -1 })
-      .limit(5);
+      .limit(10);
 
     const formattedRides = rides.map((ride) => ({
-      id: ride.cycle._id,
+      _id: ride._id,
+      id: ride._id,
+      cycle: {
+        _id: ride.cycle._id,
+        brand: ride.cycle.brand,
+        model: ride.cycle.model,
+        location: ride.cycle.location,
+        hourlyRate: ride.cycle.hourlyRate,
+      },
       model: `${ride.cycle.brand} ${ride.cycle.model}`,
-      date: ride.endTime,
-      duration: ride.duration,
-      cost: ride.totalCost,
+      endTime: ride.endTime,
+      startTime: ride.startTime,
+      duration: ride.duration, // in minutes
+      distance: ride.distance || 0, // in kilometers
+      totalCost: ride.totalCost,
+      cost: ride.totalCost, // for backward compatibility
       location: ride.cycle.location,
+      status: ride.status,
+      rating: ride.rating,
+      review: ride.review,
     }));
 
-    res.json({ rides: formattedRides });
+    res.json(formattedRides);
   } catch (error) {
+    console.error('Error fetching recent rides:', error);
     res.status(500).json({
       message: 'Error fetching recent rides',
       error: error.message,
@@ -134,7 +159,7 @@ export const createRental = async (req, res) => {
       });
     }
 
-    // Check if cycle is available
+    // Check if cycle is available and active
     if (cycle.isRented) {
       return res.status(400).json({
         message: 'Cycle is already rented',
@@ -142,10 +167,30 @@ export const createRental = async (req, res) => {
       });
     }
 
+    if (!cycle.isActive) {
+      return res.status(400).json({
+        message: 'Cycle is not available for rent',
+        error: 'CYCLE_INACTIVE',
+      });
+    }
+
+    // Check if user already has an active rental
+    const existingActiveRental = await Rental.findOne({
+      renter: renterId,
+      status: 'active',
+    });
+
+    if (existingActiveRental) {
+      return res.status(400).json({
+        message: 'You already have an active rental. Please return your current cycle first.',
+        error: 'ACTIVE_RENTAL_EXISTS',
+      });
+    }
+
     // Calculate rental duration and cost
-    const duration =
-      (new Date(endTime) - new Date(startTime)) / (1000 * 60 * 60); // in hours
-    const totalCost = duration * cycle.hourlyRate;
+    const durationInMinutes = (new Date(endTime) - new Date(startTime)) / (1000 * 60); // in minutes
+    const durationInHours = Math.ceil(durationInMinutes / 60); // Round up to nearest hour for billing
+    const totalCost = durationInHours * cycle.hourlyRate;
 
     // Create rental
     const rental = new Rental({
@@ -154,7 +199,8 @@ export const createRental = async (req, res) => {
       owner: cycle.owner,
       startTime,
       endTime,
-      duration,
+      duration: durationInMinutes, // Store duration in minutes
+      distance: 0, // Will be updated when rental is completed
       totalCost,
       status: 'active',
     });
@@ -356,10 +402,11 @@ export const getNearbyCycles = async (req, res) => {
 export const completeRental = async (req, res) => {
   try {
     const { rentalId } = req.params;
+    const { distance } = req.body; // Optional distance parameter
     const userId = req.user.uid;
 
-    // Find the rental
-    const rental = await Rental.findById(rentalId);
+    // Find the rental and populate cycle for hourly rate
+    const rental = await Rental.findById(rentalId).populate('cycle');
     if (!rental) {
       return res.status(404).json({
         message: 'Rental not found',
@@ -385,19 +432,21 @@ export const completeRental = async (req, res) => {
 
     // Calculate duration and cost
     const endTime = new Date();
-    const duration = Math.ceil((endTime - rental.startTime) / (1000 * 60)); // Duration in minutes
-    const hours = Math.ceil(duration / 60); // Round up to the nearest hour
-    const totalCost = hours * rental.hourlyRate;
+    const durationInMinutes = Math.ceil((endTime - rental.startTime) / (1000 * 60)); // Duration in minutes
+    const durationInHours = Math.ceil(durationInMinutes / 60); // Round up to the nearest hour for billing
+    const hourlyRate = rental.cycle.hourlyRate || 0;
+    const totalCost = durationInHours * hourlyRate;
 
-    // Update rental status
+    // Update rental with completion data
     rental.status = 'completed';
     rental.endTime = endTime;
-    rental.duration = duration;
+    rental.duration = durationInMinutes; // Store duration in minutes
+    rental.distance = distance || Math.max(1, Math.round(durationInMinutes / 30)); // Default: ~2km per hour if not provided
     rental.totalCost = totalCost;
     await rental.save();
 
     // Update cycle status
-    const cycle = await Cycle.findById(rental.cycle);
+    const cycle = await Cycle.findById(rental.cycle._id);
     if (cycle) {
       cycle.isRented = false;
       cycle.currentRenter = null;
@@ -408,10 +457,16 @@ export const completeRental = async (req, res) => {
       message: 'Rental completed successfully',
       rental: {
         _id: rental._id,
-        cycle: rental.cycle,
+        cycle: {
+          _id: rental.cycle._id,
+          brand: rental.cycle.brand,
+          model: rental.cycle.model,
+          location: rental.cycle.location,
+        },
         startTime: rental.startTime,
         endTime: rental.endTime,
-        duration: rental.duration,
+        duration: rental.duration, // in minutes
+        distance: rental.distance, // in kilometers
         totalCost: rental.totalCost,
         status: rental.status,
       },

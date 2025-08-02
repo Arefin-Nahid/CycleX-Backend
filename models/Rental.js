@@ -25,8 +25,12 @@ const rentalSchema = new Schema({
     required: true
   },
   duration: {
-    type: Number,  // in hours
+    type: Number,  // in minutes
     required: true
+  },
+  distance: {
+    type: Number,  // in kilometers
+    default: 0
   },
   totalCost: {
     type: Number,
