@@ -63,10 +63,36 @@ app.use('/api/payments/ssl', sslRoutes);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    message: 'Route not found',
-    error: 'NOT_FOUND',
-  });
+  // Check if this is an API request
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({
+      message: 'Route not found',
+      error: 'NOT_FOUND',
+    });
+  } else {
+    // For non-API requests (like WebView requests), return a simple HTML page
+    res.status(404).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Page Not Found</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            .container { max-width: 500px; margin: 0 auto; }
+            h1 { color: #333; }
+            p { color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>Page Not Found</h1>
+            <p>The page you're looking for doesn't exist.</p>
+            <p><a href="javascript:history.back()">Go Back</a></p>
+          </div>
+        </body>
+      </html>
+    `);
+  }
 });
 
 // Error handler
