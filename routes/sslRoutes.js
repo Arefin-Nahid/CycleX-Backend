@@ -7,6 +7,7 @@ import {
   sslCancel,
   sslIPN,
   getSSLPaymentStatus,
+  testSSLCommerz,
 } from '../controllers/sslCommerzController.js';
 
 const router = express.Router();
@@ -14,6 +15,7 @@ const router = express.Router();
 // SSLCommerz payment routes
 router.post('/create-session', authMiddleware, createSSLSession);
 router.get('/status/:transactionId', authMiddleware, getSSLPaymentStatus);
+router.get('/test', testSSLCommerz); // Test endpoint (no auth required)
 
 // SSLCommerz callback routes (no auth required as they are called by SSLCommerz)
 router.post('/success', sslSuccess);

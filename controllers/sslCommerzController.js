@@ -112,7 +112,7 @@ export const createSSLSession = async (req, res) => {
     });
 
     const sslResponse = await axios.post(
-      `${SSLCOMMERZ_CONFIG.base_url}/gwprocess/v3/api.php`,
+      `${SSLCOMMERZ_CONFIG.base_url}/gwprocess/v4/api.php`,
       formData,
       {
         headers: {
@@ -122,13 +122,22 @@ export const createSSLSession = async (req, res) => {
       }
     );
 
-    console.log('📥 SSLCommerz response:', sslResponse.data);
+    console.log('📥 SSLCommerz response:', JSON.stringify(sslResponse.data, null, 2));
+    console.log('📥 SSLCommerz response keys:', Object.keys(sslResponse.data));
 
     if (!sslResponse.data) {
       throw new Error('No response from SSLCommerz');
     }
 
-    if (sslResponse.data.status === 'VALID' || sslResponse.data.status === 'INVALID_TRANSACTION') {
+    if (sslResponse.data.status === 'VALID' || sslResponse.data.status === 'INVALID_TRANSACTION' || sslResponse.data.status === 'SUCCESS') {
+      // Check if we have the required fields (try different possible field names)
+      const sessionKey = sslResponse.data.sessionkey || sslResponse.data.session_key || sslResponse.data.sessionId;
+      const gatewayUrl = sslResponse.data.GatewayPageURL || sslResponse.data.gateway_url || sslResponse.data.gatewayUrl;
+      
+      if (!sessionKey || !gatewayUrl) {
+        throw new Error(`SSLCommerz response missing required fields. Available keys: ${Object.keys(sslResponse.data).join(', ')}. Response: ${JSON.stringify(sslResponse.data)}`);
+      }
+      
       // Create pending payment record
       const payment = new Payment({
         rental: rentalId,
@@ -138,8 +147,8 @@ export const createSSLSession = async (req, res) => {
         transactionId: transactionId,
         status: 'pending',
         gatewayResponse: {
-          sessionId: sslResponse.data.sessionkey,
-          gatewayUrl: sslResponse.data.GatewayPageURL,
+          sessionId: sessionKey,
+          gatewayUrl: gatewayUrl,
           status: sslResponse.data.status,
           timestamp: new Date(),
         },
@@ -154,8 +163,8 @@ export const createSSLSession = async (req, res) => {
       res.json({
         message: 'SSL session created successfully',
         session: {
-          sessionId: sslResponse.data.sessionkey,
-          gatewayUrl: sslResponse.data.GatewayPageURL,
+          sessionId: sessionKey,
+          gatewayUrl: gatewayUrl,
           transactionId: transactionId,
         },
         payment: {
@@ -380,6 +389,69 @@ export const sslIPN = async (req, res) => {
   } catch (error) {
     console.error('❌ Error in SSL IPN:', error);
     res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+// Test SSLCommerz connection
+export const testSSLCommerz = async (req, res) => {
+  try {
+    console.log('🧪 Testing SSLCommerz connection...');
+    
+    const testData = {
+      store_id: SSLCOMMERZ_CONFIG.store_id,
+      store_passwd: SSLCOMMERZ_CONFIG.store_password,
+      total_amount: 100,
+      currency: 'BDT',
+      tran_id: `TEST_${Date.now()}`,
+      product_category: 'Test',
+      cus_name: 'Test User',
+      cus_email: 'test@test.com',
+      cus_add1: 'Test Address',
+      cus_city: 'Dhaka',
+      cus_postcode: '1000',
+      cus_country: 'Bangladesh',
+      cus_phone: '01712345678',
+      success_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/success',
+      fail_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/fail',
+      cancel_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/cancel',
+    };
+
+    const formData = new URLSearchParams();
+    Object.keys(testData).forEach(key => {
+      formData.append(key, testData[key]);
+    });
+
+    console.log('📤 Sending test request to SSLCommerz...');
+    
+    const sslResponse = await axios.post(
+      `${SSLCOMMERZ_CONFIG.base_url}/gwprocess/v4/api.php`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 30000,
+      }
+    );
+
+    console.log('📥 Test SSLCommerz response:', JSON.stringify(sslResponse.data, null, 2));
+    console.log('📥 Test response keys:', Object.keys(sslResponse.data));
+
+    res.json({
+      message: 'SSLCommerz test completed',
+      response: sslResponse.data,
+      status: sslResponse.data.status,
+      hasSessionKey: !!sslResponse.data.sessionkey,
+      hasGatewayUrl: !!sslResponse.data.GatewayPageURL,
+    });
+
+  } catch (error) {
+    console.error('❌ SSLCommerz test error:', error);
+    res.status(500).json({
+      message: 'SSLCommerz test failed',
+      error: error.message,
+      response: error.response?.data,
+    });
   }
 };
 
