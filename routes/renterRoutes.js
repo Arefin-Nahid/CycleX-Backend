@@ -10,7 +10,8 @@ import {
   getRentalHistory,
   rateCycle,
   searchCycles,
-  getNearbyCycles
+  getNearbyCycles,
+  fixOrphanedCycles
 } from '../controllers/renterController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
@@ -37,5 +38,8 @@ router.post('/rentals/:rentalId/rate', rateCycle);
 // Cycle Search
 router.get('/cycles/search', searchCycles);
 router.get('/cycles/nearby', getNearbyCycles);
+
+// Utility endpoints (for debugging)
+router.post('/fix-orphaned-cycles', fixOrphanedCycles);
 
 export default router; 
