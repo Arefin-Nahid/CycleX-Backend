@@ -29,7 +29,11 @@ class MongoFirebaseSync {
       this.changeStream = Cycle.watch([
         {
           $match: {
-            'updateDescription.updatedFields.isRented': { $exists: true }
+            $or: [
+              { 'updateDescription.updatedFields.isRented': { $exists: true } },
+              { 'updateDescription.updatedFields.isActive': { $exists: true } },
+              { 'updateDescription.updatedFields.coordinates': { $exists: true } }
+            ]
           }
         }
       ]);
@@ -37,16 +41,24 @@ class MongoFirebaseSync {
       this.changeStream.on('change', async (change) => {
         try {
           const cycleId = change.documentKey._id.toString();
-          const isRented = change.updateDescription.updatedFields.isRented;
-          const isLocked = isRented ? 1 : 0;
-
+          const updatedFields = change.updateDescription?.updatedFields || {};
+          
           console.log(`🔄 MongoDB Change Detected:`);
           console.log(`   Cycle ID: ${cycleId}`);
-          console.log(`   isRented: ${isRented}`);
-          console.log(`   isLocked: ${isLocked}`);
+          console.log(`   Updated Fields:`, updatedFields);
 
-          // Update Firebase immediately
-          await this.updateFirebaseLockStatus(cycleId, isLocked);
+          // Handle isRented changes (lock status)
+          if (updatedFields.isRented !== undefined) {
+            const isLocked = updatedFields.isRented ? 1 : 0;
+            console.log(`   isRented: ${updatedFields.isRented} → isLocked: ${isLocked}`);
+            await this.updateFirebaseLockStatus(cycleId, isLocked);
+          }
+
+          // Handle other field changes if needed
+          if (updatedFields.isActive !== undefined || updatedFields.coordinates) {
+            console.log(`   Additional fields updated:`, updatedFields);
+            // You can add more Firebase updates here if needed
+          }
 
         } catch (error) {
           console.error('❌ Error processing MongoDB change:', error);
@@ -56,11 +68,21 @@ class MongoFirebaseSync {
       this.changeStream.on('error', (error) => {
         console.error('❌ Change stream error:', error);
         this.isWatching = false;
+        // Attempt to restart sync after a delay
+        setTimeout(() => {
+          console.log('🔄 Attempting to restart real-time sync...');
+          this.startSync();
+        }, 5000);
       });
 
       this.changeStream.on('close', () => {
         console.log('🔄 Change stream closed');
         this.isWatching = false;
+        // Attempt to restart sync after a delay
+        setTimeout(() => {
+          console.log('🔄 Attempting to restart real-time sync...');
+          this.startSync();
+        }, 5000);
       });
 
       this.isWatching = true;
@@ -68,6 +90,11 @@ class MongoFirebaseSync {
 
     } catch (error) {
       console.error('❌ Error starting real-time sync:', error);
+      // Attempt to restart sync after a delay
+      setTimeout(() => {
+        console.log('🔄 Attempting to restart real-time sync...');
+        this.startSync();
+      }, 5000);
     }
   }
 
@@ -125,26 +152,43 @@ class MongoFirebaseSync {
         return;
       }
 
-      const cycles = await Cycle.find({});
-      console.log(`📋 Found ${cycles.length} cycles in MongoDB for initial sync`);
-      
+      // Clear existing Firebase data first
+      console.log('🧹 Clearing existing Firebase data...');
       const cyclesRef = db.ref('cycles');
+      await cyclesRef.remove();
+      console.log('✅ Firebase data cleared');
+
+      const cycles = await Cycle.find({});
+      console.log(`📋 Found ${cycles.length} real cycles in MongoDB for initial sync`);
+      
+      let syncedCount = 0;
+      let errorCount = 0;
       
       for (const cycle of cycles) {
-        const cycleId = cycle._id.toString();
-        const isRented = cycle.isRented;
-        const isLocked = isRented ? 1 : 0;
-        
-        console.log(`🔄 Initial sync: ${cycle.brand} ${cycle.model} - isRented=${isRented} → isLocked=${isLocked}`);
-        
-        await cyclesRef.child(cycleId).set({
-          isLocked: isLocked,
-          lastUpdated: new Date().toISOString(),
-          timestamp: Date.now()
-        });
+        try {
+          const cycleId = cycle._id.toString();
+          const isRented = cycle.isRented;
+          const isLocked = isRented ? 1 : 0;
+          
+          console.log(`🔄 Initial sync: ${cycle.brand} ${cycle.model} - isRented=${isRented} → isLocked=${isLocked}`);
+          
+          await cyclesRef.child(cycleId).set({
+            isLocked: isLocked,
+            lastUpdated: new Date().toISOString(),
+            timestamp: Date.now()
+          });
+          
+          syncedCount++;
+          console.log(`✅ Successfully synced: ${cycle.brand} ${cycle.model}`);
+          
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ Error syncing cycle ${cycle._id}:`, error);
+        }
       }
       
-      console.log('✅ Initial sync completed successfully!');
+      console.log('✅ Initial sync completed!');
+      console.log(`📊 Summary: ${syncedCount} synced, ${errorCount} errors`);
       
     } catch (error) {
       console.error('❌ Error during initial sync:', error);

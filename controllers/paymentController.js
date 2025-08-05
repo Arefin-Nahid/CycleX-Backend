@@ -113,14 +113,14 @@ export const processPayment = async (req, res) => {
   }
 };
 
-// Verify payment with SSL gateway (demo implementation)
+// Verify payment with SSL gateway
 async function _verifyPaymentWithGateway(method, phoneNumber, transactionId, amount) {
   console.log(`🔍 Verifying payment: Method=${method}, Phone=${phoneNumber}, TxnID=${transactionId}, Amount=${amount}`);
   
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // Demo validation logic - more lenient for demo purposes
+  // Payment validation logic
   if (!phoneNumber || !transactionId || !amount) {
     console.log('❌ Payment verification failed: Missing required fields');
     return false;

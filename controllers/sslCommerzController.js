@@ -569,71 +569,7 @@ export const sslIPN = async (req, res) => {
   }
 };
 
-// Test SSLCommerz connection
-export const testSSLCommerz = async (req, res) => {
-  try {
-    console.log('🧪 Testing SSLCommerz connection...');
-    
-    const testData = {
-      store_id: SSLCOMMERZ_CONFIG.store_id,
-      store_passwd: SSLCOMMERZ_CONFIG.store_password,
-      total_amount: 100,
-      currency: 'BDT',
-      tran_id: `TEST_${Date.now()}`,
-      product_category: 'Test',
-      product_name: 'Test Product', // Required field - product name
-      product_profile: 'non-physical-goods', // Required field - service-based business
-      cus_name: 'Test User',
-      cus_email: 'test@test.com',
-      cus_add1: 'Test Address',
-      cus_city: 'Dhaka',
-      cus_postcode: '1000',
-      cus_country: 'Bangladesh',
-      cus_phone: '01712345678',
-      shipping_method: 'NO', // Required field - NO since we don't ship physical items
-      success_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/success',
-      fail_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/fail',
-      cancel_url: 'https://cycle-x-backend.vercel.app/api/payments/ssl/cancel',
-    };
 
-    const formData = new URLSearchParams();
-    Object.keys(testData).forEach(key => {
-      formData.append(key, testData[key]);
-    });
-
-    console.log('📤 Sending test request to SSLCommerz...');
-    
-    const sslResponse = await axios.post(
-      `${SSLCOMMERZ_CONFIG.base_url}/gwprocess/v4/api.php`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        timeout: 30000,
-      }
-    );
-
-    console.log('📥 Test SSLCommerz response:', JSON.stringify(sslResponse.data, null, 2));
-    console.log('📥 Test response keys:', Object.keys(sslResponse.data));
-
-    res.json({
-      message: 'SSLCommerz test completed',
-      response: sslResponse.data,
-      status: sslResponse.data.status,
-      hasSessionKey: !!sslResponse.data.sessionkey,
-      hasGatewayUrl: !!sslResponse.data.GatewayPageURL,
-    });
-
-  } catch (error) {
-    console.error('❌ SSLCommerz test error:', error);
-    res.status(500).json({
-      message: 'SSLCommerz test failed',
-      error: error.message,
-      response: error.response?.data,
-    });
-  }
-};
 
 // Get SSL payment status
 export const getSSLPaymentStatus = async (req, res) => {
