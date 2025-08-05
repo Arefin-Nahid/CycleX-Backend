@@ -7,7 +7,7 @@ export const processPayment = async (req, res) => {
     const { rentalId, amount, paymentMethod, phoneNumber, transactionId } = req.body;
     const userId = req.user.uid;
 
-    console.log(`🔍 Processing payment for rental: ${rentalId}`);
+    console.log(`Processing payment for rental: ${rentalId}`);
     console.log(`💰 Amount: ${amount}, Method: ${paymentMethod}`);
 
     // Find the rental
@@ -86,7 +86,7 @@ export const processPayment = async (req, res) => {
     rental.paymentId = payment._id;
     await rental.save();
 
-    console.log(`✅ Payment processed successfully for rental: ${rentalId}`);
+          console.log(`Payment processed successfully for rental: ${rentalId}`);
 
     res.json({
       message: 'Payment processed successfully',
@@ -105,7 +105,7 @@ export const processPayment = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('❌ Error processing payment:', error);
+    console.error('Error processing payment:', error);
     res.status(500).json({
       message: 'Error processing payment',
       error: error.message,
@@ -115,41 +115,41 @@ export const processPayment = async (req, res) => {
 
 // Verify payment with SSL gateway
 async function _verifyPaymentWithGateway(method, phoneNumber, transactionId, amount) {
-  console.log(`🔍 Verifying payment: Method=${method}, Phone=${phoneNumber}, TxnID=${transactionId}, Amount=${amount}`);
+      console.log(`Verifying payment: Method=${method}, Phone=${phoneNumber}, TxnID=${transactionId}, Amount=${amount}`);
   
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
   // Payment validation logic
   if (!phoneNumber || !transactionId || !amount) {
-    console.log('❌ Payment verification failed: Missing required fields');
+          console.log('Payment verification failed: Missing required fields');
     return false;
   }
 
   // Validate phone number format (Bangladesh) - more lenient
   const phoneRegex = /^01[3-9]\d{8}$/;
   if (!phoneRegex.test(phoneNumber)) {
-    console.log('❌ Payment verification failed: Invalid phone number format');
+          console.log('Payment verification failed: Invalid phone number format');
     console.log(`Expected format: 01XXXXXXXXX, Got: ${phoneNumber}`);
     return false;
   }
 
   // Validate transaction ID format - more lenient
   if (transactionId.length < 6) {
-    console.log('❌ Payment verification failed: Transaction ID too short');
+          console.log('Payment verification failed: Transaction ID too short');
     console.log(`Expected: 6+ characters, Got: ${transactionId.length} characters`);
     return false;
   }
 
   // Validate amount
   if (amount <= 0) {
-    console.log('❌ Payment verification failed: Invalid amount');
+          console.log('Payment verification failed: Invalid amount');
     console.log(`Expected: > 0, Got: ${amount}`);
     return false;
   }
 
   // Simulate successful payment verification
-  console.log('✅ Payment verification successful');
+        console.log('Payment verification successful');
   return true;
 }
 

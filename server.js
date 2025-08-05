@@ -8,11 +8,11 @@ app.listen(PORT, async () => {
   
   // Start real-time MongoDB to Firebase sync
   try {
-    console.log('🔄 Initializing real-time sync...');
+    console.log('Initializing real-time sync...');
     await mongoFirebaseSync.initialSync(); // Sync current data
     await mongoFirebaseSync.startSync(); // Start watching for changes
-    console.log('✅ Real-time sync initialized successfully!');
+    console.log('Real-time sync initialized successfully!');
   } catch (error) {
-    console.error('❌ Error initializing real-time sync:', error);
+    console.error('Error initializing real-time sync:', error);
   }
 });

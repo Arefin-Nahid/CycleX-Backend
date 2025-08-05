@@ -10,7 +10,7 @@ class FirebaseService {
   static async updateCycleLockStatus(cycleId, isLocked) {
     try {
       if (!db) {
-        console.warn('⚠️ Firebase Realtime Database not configured. Skipping lock status update.');
+        console.warn('Firebase Realtime Database not configured. Skipping lock status update.');
         return {
           success: false,
           cycleId: cycleId,
@@ -19,7 +19,7 @@ class FirebaseService {
         };
       }
 
-      console.log(`🔒 Firebase: Updating lock status for cycle ${cycleId} to ${isLocked}`);
+      console.log(`Firebase: Updating lock status for cycle ${cycleId} to ${isLocked}`);
       
       // Update ONLY the lock status in Firebase (minimal data)
       const cycleRef = db.ref(`cycles/${cycleId}`);
@@ -29,7 +29,7 @@ class FirebaseService {
         timestamp: Date.now()
       });
 
-      console.log(`✅ Firebase: Successfully updated lock status for cycle ${cycleId}`);
+      console.log(`Firebase: Successfully updated lock status for cycle ${cycleId}`);
       
       return {
         success: true,
@@ -38,7 +38,7 @@ class FirebaseService {
         message: `Cycle lock status updated to ${isLocked === 1 ? 'locked' : 'unlocked'}`
       };
     } catch (error) {
-      console.error(`❌ Firebase: Error updating lock status for cycle ${cycleId}:`, error);
+      console.error(`Firebase: Error updating lock status for cycle ${cycleId}:`, error);
       throw new Error(`Failed to update cycle lock status: ${error.message}`);
     }
   }
@@ -51,7 +51,7 @@ class FirebaseService {
   static async getCycleLockStatus(cycleId) {
     try {
       if (!db) {
-        console.warn('⚠️ Firebase Realtime Database not configured. Cannot get lock status.');
+        console.warn('Firebase Realtime Database not configured. Cannot get lock status.');
         return {
           success: false,
           cycleId: cycleId,
@@ -59,14 +59,14 @@ class FirebaseService {
         };
       }
 
-      console.log(`🔍 Firebase: Getting lock status for cycle ${cycleId}`);
+      console.log(`Firebase: Getting lock status for cycle ${cycleId}`);
       
       const cycleRef = db.ref(`cycles/${cycleId}`);
       const snapshot = await cycleRef.once('value');
       const data = snapshot.val();
 
       if (!data) {
-        console.log(`⚠️ Firebase: No data found for cycle ${cycleId}`);
+        console.log(`Firebase: No data found for cycle ${cycleId}`);
         return {
           success: false,
           cycleId: cycleId,
@@ -74,7 +74,7 @@ class FirebaseService {
         };
       }
 
-      console.log(`✅ Firebase: Retrieved lock status for cycle ${cycleId}:`, data);
+      console.log(`Firebase: Retrieved lock status for cycle ${cycleId}:`, data);
       
       return {
         success: true,
@@ -84,7 +84,7 @@ class FirebaseService {
         timestamp: data.timestamp
       };
     } catch (error) {
-      console.error(`❌ Firebase: Error getting lock status for cycle ${cycleId}:`, error);
+      console.error(`Firebase: Error getting lock status for cycle ${cycleId}:`, error);
       throw new Error(`Failed to get cycle lock status: ${error.message}`);
     }
   }
@@ -98,7 +98,7 @@ class FirebaseService {
   static async initializeCycle(cycleId, cycleData = {}) {
     try {
       if (!db) {
-        console.warn('⚠️ Firebase Realtime Database not configured. Cannot initialize cycle.');
+        console.warn('Firebase Realtime Database not configured. Cannot initialize cycle.');
         return {
           success: false,
           cycleId: cycleId,
@@ -106,7 +106,7 @@ class FirebaseService {
         };
       }
 
-      console.log(`🔧 Firebase: Initializing lock status for cycle ${cycleId}`);
+      console.log(`Firebase: Initializing lock status for cycle ${cycleId}`);
       
       const cycleRef = db.ref(`cycles/${cycleId}`);
       await cycleRef.set({
@@ -115,7 +115,7 @@ class FirebaseService {
         timestamp: Date.now()
       });
 
-      console.log(`✅ Firebase: Successfully initialized lock status for cycle ${cycleId}`);
+      console.log(`Firebase: Successfully initialized lock status for cycle ${cycleId}`);
       
       return {
         success: true,
@@ -123,7 +123,7 @@ class FirebaseService {
         message: 'Cycle lock status initialized in Firebase'
       };
     } catch (error) {
-      console.error(`❌ Firebase: Error initializing cycle ${cycleId}:`, error);
+      console.error(`Firebase: Error initializing cycle ${cycleId}:`, error);
       throw new Error(`Failed to initialize cycle: ${error.message}`);
     }
   }
@@ -135,12 +135,12 @@ class FirebaseService {
    */
   static async deleteCycle(cycleId) {
     try {
-      console.log(`🗑️ Firebase: Deleting cycle ${cycleId} from Realtime Database`);
+      console.log(`Firebase: Deleting cycle ${cycleId} from Realtime Database`);
       
       const cycleRef = db.ref(`cycles/${cycleId}`);
       await cycleRef.remove();
 
-      console.log(`✅ Firebase: Successfully deleted cycle ${cycleId}`);
+      console.log(`Firebase: Successfully deleted cycle ${cycleId}`);
       
       return {
         success: true,
@@ -148,7 +148,7 @@ class FirebaseService {
         message: 'Cycle deleted from Firebase Realtime Database'
       };
     } catch (error) {
-      console.error(`❌ Firebase: Error deleting cycle ${cycleId}:`, error);
+      console.error(`Firebase: Error deleting cycle ${cycleId}:`, error);
       throw new Error(`Failed to delete cycle: ${error.message}`);
     }
   }
@@ -159,13 +159,13 @@ class FirebaseService {
    */
   static async getAllCycles() {
     try {
-      console.log(`📋 Firebase: Getting all cycles from Realtime Database`);
+      console.log(`Firebase: Getting all cycles from Realtime Database`);
       
       const cyclesRef = db.ref('cycles');
       const snapshot = await cyclesRef.once('value');
       const data = snapshot.val();
 
-      console.log(`✅ Firebase: Retrieved ${Object.keys(data || {}).length} cycles`);
+      console.log(`Firebase: Retrieved ${Object.keys(data || {}).length} cycles`);
       
       return {
         success: true,
@@ -173,7 +173,7 @@ class FirebaseService {
         count: Object.keys(data || {}).length
       };
     } catch (error) {
-      console.error(`❌ Firebase: Error getting all cycles:`, error);
+      console.error(`Firebase: Error getting all cycles:`, error);
       throw new Error(`Failed to get all cycles: ${error.message}`);
     }
   }

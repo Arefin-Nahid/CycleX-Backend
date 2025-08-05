@@ -484,7 +484,7 @@ export const getRentalHistory = async (req, res) => {
   try {
     const userId = req.user.uid;
 
-    console.log(`🔍 Fetching rental history for user: ${userId}`);
+    console.log(`Fetching rental history for user: ${userId}`);
 
     // Find all rentals for the user with populated cycle details
     const rentals = await Rental.find({ renter: userId })
@@ -492,7 +492,7 @@ export const getRentalHistory = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50); // Limit to prevent performance issues
 
-    console.log(`📊 Found ${rentals.length} rentals for user`);
+    console.log(`Found ${rentals.length} rentals for user`);
 
     // Format the rental history data with enhanced information
     const formattedRentals = rentals.map((rental) => {
@@ -530,7 +530,7 @@ export const getRentalHistory = async (req, res) => {
       };
     });
 
-    console.log(`✅ Rental history formatted successfully`);
+    console.log(`Rental history formatted successfully`);
 
     // Calculate summary statistics
     const stats = {
@@ -550,14 +550,14 @@ export const getRentalHistory = async (req, res) => {
       stats.averageRating = ratedRentals.reduce((sum, rental) => sum + rental.rating, 0) / ratedRentals.length;
     }
 
-    console.log(`📊 Rental history stats calculated:`, stats);
+    console.log(`Rental history stats calculated:`, stats);
 
     res.json({ 
       rentals: formattedRentals,
       stats: stats,
     });
   } catch (error) {
-    console.error('❌ Error fetching rental history:', error);
+    console.error('Error fetching rental history:', error);
     res.status(500).json({
       message: 'Error fetching rental history',
       error: error.message,

@@ -77,8 +77,8 @@ export const addCycle = async (req, res) => {
 
     await cycle.save();
 
-    // 🔧 Initialize cycle in Firebase Realtime Database
-    console.log('🔧 Initializing cycle in Firebase Realtime Database...');
+    // Initialize cycle in Firebase Realtime Database
+    console.log('Initializing cycle in Firebase Realtime Database...');
     try {
       await FirebaseService.initializeCycle(cycle._id.toString(), {
         brand: cycle.brand,
@@ -87,9 +87,9 @@ export const addCycle = async (req, res) => {
         location: cycle.location,
         hourlyRate: cycle.hourlyRate
       });
-      console.log('✅ Firebase: Cycle initialized successfully');
+              console.log('Firebase: Cycle initialized successfully');
     } catch (firebaseError) {
-      console.error('❌ Firebase: Error initializing cycle:', firebaseError);
+              console.error('Firebase: Error initializing cycle:', firebaseError);
       // Don't fail the cycle creation if Firebase fails
       // The cycle is still created in the database
     }
@@ -280,13 +280,13 @@ export const deleteCycle = async (req, res) => {
 
     await cycle.deleteOne();
 
-    // 🗑️ Remove cycle from Firebase Realtime Database
-    console.log('🗑️ Removing cycle from Firebase Realtime Database...');
+    // Remove cycle from Firebase Realtime Database
+    console.log('Removing cycle from Firebase Realtime Database...');
     try {
       await FirebaseService.deleteCycle(cycleId);
-      console.log('✅ Firebase: Cycle removed successfully');
+              console.log('Firebase: Cycle removed successfully');
     } catch (firebaseError) {
-      console.error('❌ Firebase: Error removing cycle:', firebaseError);
+              console.error('Firebase: Error removing cycle:', firebaseError);
       // Don't fail the deletion if Firebase fails
       // The cycle is still deleted from the database
     }

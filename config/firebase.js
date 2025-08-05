@@ -32,10 +32,10 @@ try {
 let db;
 try {
   db = admin.database();
-  console.log('✅ Firebase Realtime Database initialized successfully');
+  console.log('Firebase Realtime Database initialized successfully');
 } catch (error) {
-  console.warn('⚠️ Firebase Realtime Database not configured. Please set FIREBASE_DATABASE_URL in your .env file');
-  console.warn('⚠️ Firebase features will be disabled until configured');
+  console.warn('Firebase Realtime Database not configured. Please set FIREBASE_DATABASE_URL in your .env file');
+  console.warn('Firebase features will be disabled until configured');
   db = null;
 }
 

@@ -16,7 +16,7 @@ export const createSSLSession = async (req, res) => {
     const { rentalId, amount, customerInfo } = req.body;
     const userId = req.user.uid;
 
-    console.log(`🔍 Creating SSL session for rental: ${rentalId}`);
+    console.log(`Creating SSL session for rental: ${rentalId}`);
     console.log(`💰 Amount: ${amount}`);
 
     // Find the rental
@@ -182,19 +182,19 @@ export const createSSLSession = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Error creating SSL session:', error);
+    console.error('Error creating SSL session:', error);
     
     // Log more details for debugging
     if (error.response) {
-      console.error('❌ SSLCommerz API Error Response:', {
+      console.error('SSLCommerz API Error Response:', {
         status: error.response.status,
         data: error.response.data,
         headers: error.response.headers,
       });
     } else if (error.request) {
-      console.error('❌ SSLCommerz API Request Error:', error.request);
+      console.error('SSLCommerz API Request Error:', error.request);
     } else {
-      console.error('❌ SSLCommerz API Error:', error.message);
+              console.error('SSLCommerz API Error:', error.message);
     }
     
     res.status(500).json({
@@ -209,12 +209,12 @@ export const sslSuccess = async (req, res) => {
   try {
     const { tran_id, val_id, amount, currency, bank_tran_id, store_amount, card_type, card_no, card_issuer, card_brand, card_sub_brand, card_issuer_country, card_issuer_country_code, store_id, verify_sign, verify_key, base_fair, value_a, value_b, value_c, value_d } = req.body;
 
-    console.log('✅ SSL Success callback received:', { tran_id, val_id, amount });
+    console.log('SSL Success callback received:', { tran_id, val_id, amount });
 
     // Find payment by transaction ID
     const payment = await Payment.findOne({ transactionId: tran_id });
     if (!payment) {
-      console.error('❌ Payment not found for transaction:', tran_id);
+      console.error('Payment not found for transaction:', tran_id);
       // Return simple HTML response instead of trying to serve a file
       return res.send(`
         <!DOCTYPE html>
@@ -258,7 +258,7 @@ export const sslSuccess = async (req, res) => {
       }
     );
 
-    console.log('🔍 SSL verification response:', verifyResponse.data);
+    console.log('SSL verification response:', verifyResponse.data);
 
     if (verifyResponse.data.status === 'VALID' || verifyResponse.data.status === 'VALIDATED') {
       // Update payment status
@@ -283,7 +283,7 @@ export const sslSuccess = async (req, res) => {
         await rental.save();
       }
 
-      console.log('✅ Payment verified and completed successfully');
+      console.log('Payment verified and completed successfully');
 
       // Return simple HTML response instead of trying to serve a file
       res.send(`
@@ -309,7 +309,7 @@ export const sslSuccess = async (req, res) => {
         </html>
       `);
     } else {
-      console.error('❌ Payment verification failed:', verifyResponse.data);
+      console.error('Payment verification failed:', verifyResponse.data);
       // Return simple HTML response for failed payment
       res.send(`
         <!DOCTYPE html>
@@ -335,7 +335,7 @@ export const sslSuccess = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('❌ Error in SSL success callback:', error);
+    console.error('Error in SSL success callback:', error);
     // Return simple HTML response for error
     res.send(`
       <!DOCTYPE html>
@@ -365,7 +365,7 @@ export const sslSuccess = async (req, res) => {
 export const sslFail = async (req, res) => {
   try {
     const { tran_id, error } = req.body;
-    console.log('❌ SSL Fail callback received:', { tran_id, error });
+    console.log('SSL Fail callback received:', { tran_id, error });
 
     // Find and update payment status
     const payment = await Payment.findOne({ transactionId: tran_id });
@@ -403,7 +403,7 @@ export const sslFail = async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('❌ Error in SSL fail callback:', error);
+    console.error('Error in SSL fail callback:', error);
     // Return simple HTML response for error
     res.send(`
       <!DOCTYPE html>
@@ -469,7 +469,7 @@ export const sslCancel = async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('❌ Error in SSL cancel callback:', error);
+    console.error('Error in SSL cancel callback:', error);
     // Return simple HTML response for error
     res.send(`
       <!DOCTYPE html>
@@ -505,7 +505,7 @@ export const sslIPN = async (req, res) => {
     // Find payment by transaction ID
     const payment = await Payment.findOne({ transactionId: tran_id });
     if (!payment) {
-      console.error('❌ Payment not found for IPN:', tran_id);
+      console.error('Payment not found for IPN:', tran_id);
       // Instead of returning 404 error, return success response
       // The payment might be created later or this might be a duplicate IPN
       return res.json({ status: 'success', message: 'Payment not found but IPN processed' });
@@ -553,17 +553,17 @@ export const sslIPN = async (req, res) => {
           await rental.save();
         }
 
-        console.log('✅ Payment verified via IPN');
+        console.log('Payment verified via IPN');
       }
 
       res.json({ status: 'success' });
     } else {
-      console.error('❌ IPN verification failed:', verifyResponse.data);
+              console.error('IPN verification failed:', verifyResponse.data);
       res.status(400).json({ status: 'failed', message: 'Verification failed' });
     }
 
   } catch (error) {
-    console.error('❌ Error in SSL IPN:', error);
+    console.error('Error in SSL IPN:', error);
     // Return success response instead of 500 error to prevent error messages
     res.json({ status: 'success', message: 'IPN processed with errors' });
   }
@@ -577,7 +577,7 @@ export const getSSLPaymentStatus = async (req, res) => {
     const { transactionId } = req.params;
     const userId = req.user.uid;
 
-    console.log(`🔍 Checking payment status for transaction: ${transactionId}, user: ${userId}`);
+    console.log(`Checking payment status for transaction: ${transactionId}, user: ${userId}`);
 
     const payment = await Payment.findOne({ 
       transactionId: transactionId,
@@ -597,7 +597,7 @@ export const getSSLPaymentStatus = async (req, res) => {
       });
     }
 
-    console.log(`✅ Payment found with status: ${payment.status}`);
+          console.log(`Payment found with status: ${payment.status}`);
 
     res.json({
       payment: {
@@ -617,7 +617,7 @@ export const getSSLPaymentStatus = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching SSL payment status:', error);
+    console.error('Error fetching SSL payment status:', error);
     // Return 200 status with pending instead of 500 error
     res.status(200).json({
       payment: {

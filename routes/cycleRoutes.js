@@ -37,14 +37,14 @@ router.post('/initialize-firebase', initializeCyclesInFirebase); // Initialize c
 // Manual sync route
 router.post('/sync-firebase', async (req, res) => {
   try {
-    console.log('🔄 Manual sync requested...');
+    console.log('Manual sync requested...');
     await mongoFirebaseSync.initialSync();
     res.json({
       message: 'Manual sync completed successfully',
       status: 'success'
     });
   } catch (error) {
-    console.error('❌ Manual sync error:', error);
+    console.error('Manual sync error:', error);
     res.status(500).json({
       message: 'Error during manual sync',
       error: error.message

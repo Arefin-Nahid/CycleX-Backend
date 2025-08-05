@@ -8,7 +8,7 @@ export const getNearbyCycles = async (req, res) => {
   try {
     const { lat, lng, radius = 10 } = req.query; // Default radius 10km
     
-    console.log(`🔍 Fetching nearby cycles for location: ${lat}, ${lng} within ${radius}km`);
+    console.log(`Fetching nearby cycles for location: ${lat}, ${lng} within ${radius}km`);
 
     // Base query for active and available cycles
     let query = {
@@ -46,7 +46,7 @@ export const getNearbyCycles = async (req, res) => {
       .sort({ createdAt: -1 }) // Sort by newest first
       .limit(100); // Limit to 100 cycles for performance
 
-    console.log(`✅ Found ${cycles.length} active cycles`);
+    console.log(`Found ${cycles.length} active cycles`);
 
     // Transform the response to ensure proper coordinate structure
     const transformedCycles = cycles.map(cycle => ({
@@ -77,7 +77,7 @@ export const getNearbyCycles = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching nearby cycles:', error);
+    console.error('Error fetching nearby cycles:', error);
     res.status(500).json({
       message: 'Error fetching nearby cycles',
       error: error.message,
@@ -90,7 +90,7 @@ export const getActiveCyclesForMap = async (req, res) => {
   try {
     const { lat, lng, radius = 20 } = req.query; // Default radius 20km for map view
     
-    console.log(`🗺️ Fetching active cycles for map view: ${lat}, ${lng} within ${radius}km`);
+    console.log(`Fetching active cycles for map view: ${lat}, ${lng} within ${radius}km`);
 
     // Base query for active and available cycles with coordinates
     let query = {
@@ -140,7 +140,7 @@ export const getActiveCyclesForMap = async (req, res) => {
         .limit(100);
     }
 
-    console.log(`✅ Found ${cycles.length} active cycles for map`);
+    console.log(`Found ${cycles.length} active cycles for map`);
 
     // Transform cycles for map display with minimal data
     const mapCycles = cycles.map(cycle => {
@@ -183,7 +183,7 @@ export const getActiveCyclesForMap = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching cycles for map:', error);
+    console.error('Error fetching cycles for map:', error);
     res.status(500).json({
       message: 'Error fetching cycles for map',
       error: error.message,
@@ -282,14 +282,14 @@ export const rentCycleByQR = async (req, res) => {
     const { cycleId } = req.body;
     const userId = req.user.uid;
 
-    console.log(`🔍 Starting rental process for cycle: ${cycleId} by user: ${userId}`);
-    console.log(`🔍 Request body:`, req.body);
-    console.log(`🔍 User ID: ${userId}`);
+    console.log(`Starting rental process for cycle: ${cycleId} by user: ${userId}`);
+    console.log(`Request body:`, req.body);
+    console.log(`User ID: ${userId}`);
 
     // Validate input
     if (!cycleId) {
       await session.abortTransaction();
-      console.log('❌ Missing cycleId in request');
+      console.log('Missing cycleId in request');
       return res.status(400).json({
         message: 'Cycle ID is required',
         error: 'MISSING_CYCLE_ID',
@@ -299,21 +299,21 @@ export const rentCycleByQR = async (req, res) => {
     // Validate ObjectId format
     if (cycleId.length !== 24) {
       await session.abortTransaction();
-      console.log('❌ Invalid cycleId format:', cycleId);
+      console.log('Invalid cycleId format:', cycleId);
       return res.status(400).json({
         message: 'Invalid cycle ID format',
         error: 'INVALID_ID_FORMAT',
       });
     }
 
-    console.log('🔍 Finding cycle in database...');
+    console.log('Finding cycle in database...');
 
-    console.log(`🔍 Checking cycle availability for ID: ${cycleId}`);
+    console.log(`Checking cycle availability for ID: ${cycleId}`);
     
     // First, let's check if the cycle exists and its current status
     const existingCycle = await Cycle.findById(cycleId);
     if (existingCycle) {
-      console.log(`🔍 Cycle found:`, {
+      console.log(`Cycle found:`, {
         id: existingCycle._id,
         brand: existingCycle.brand,
         model: existingCycle.model,
@@ -322,7 +322,7 @@ export const rentCycleByQR = async (req, res) => {
         owner: existingCycle.owner
       });
     } else {
-      console.log(`❌ Cycle not found with ID: ${cycleId}`);
+      console.log(`Cycle not found with ID: ${cycleId}`);
     }
     
     // Use findOneAndUpdate with session for atomic operation
@@ -347,26 +347,26 @@ export const rentCycleByQR = async (req, res) => {
 
     if (!cycle) {
       await session.abortTransaction();
-      console.log('❌ Cycle not found or not available:', cycleId);
+      console.log('Cycle not found or not available:', cycleId);
       return res.status(400).json({ 
         message: 'Cycle is not available for rent (may be inactive or already rented)', 
         error: 'CYCLE_UNAVAILABLE_OR_INACTIVE'
       });
     }
 
-    console.log('✅ Cycle found and updated:', cycle._id);
+          console.log('Cycle found and updated:', cycle._id);
 
     // Check if user is trying to rent their own cycle
     if (cycle.owner === userId) {
       await session.abortTransaction();
-      console.log('❌ User trying to rent their own cycle');
+      console.log('User trying to rent their own cycle');
       return res.status(400).json({ 
         message: 'You cannot rent your own cycle', 
         error: 'OWNER_RENTAL_NOT_ALLOWED' 
       });
     }
 
-    console.log('🔍 Checking for existing active rentals...');
+          console.log('Checking for existing active rentals...');
 
     // Check if user has an active rental
     const activeRental = await Rental.findOne({
@@ -376,7 +376,7 @@ export const rentCycleByQR = async (req, res) => {
 
     if (activeRental) {
       await session.abortTransaction();
-      console.log('❌ User already has active rental:', activeRental._id);
+              console.log('User already has active rental:', activeRental._id);
       return res.status(400).json({ 
         message: 'You already have an active rental', 
         error: 'ACTIVE_RENTAL_EXISTS',
@@ -388,7 +388,7 @@ export const rentCycleByQR = async (req, res) => {
       });
     }
 
-    console.log('✅ No existing active rentals found');
+          console.log('No existing active rentals found');
 
     // Create rental record
     const rental = new Rental({
@@ -404,23 +404,23 @@ export const rentCycleByQR = async (req, res) => {
       hourlyRate: cycle.hourlyRate
     });
 
-    console.log('🔍 Saving rental record...');
+          console.log('Saving rental record...');
     await rental.save({ session });
 
-    // 🔒 Update Firebase Realtime Database - Lock the cycle (isLocked = 1)
-    console.log('🔒 Updating Firebase Realtime Database - Locking cycle...');
+    // Update Firebase Realtime Database - Lock the cycle (isLocked = 1)
+    console.log('Updating Firebase Realtime Database - Locking cycle...');
     try {
       await FirebaseService.updateCycleLockStatus(cycleId, 1);
-      console.log('✅ Firebase: Cycle locked successfully');
+              console.log('Firebase: Cycle locked successfully');
     } catch (firebaseError) {
-      console.error('❌ Firebase: Error locking cycle:', firebaseError);
+              console.error('Firebase: Error locking cycle:', firebaseError);
       // Don't fail the entire rental process if Firebase fails
       // The rental is still valid, just the hardware lock might not work
     }
 
     await session.commitTransaction();
 
-    console.log(`✅ Rental started successfully: Cycle ${cycleId} rented by user ${userId}`);
+          console.log(`Rental started successfully: Cycle ${cycleId} rented by user ${userId}`);
 
     res.json({
       message: 'Rental started successfully',
@@ -444,7 +444,7 @@ export const rentCycleByQR = async (req, res) => {
 
   } catch (error) {
     await session.abortTransaction();
-    console.error('❌ Error in rentCycleByQR:', error);
+    console.error('Error in rentCycleByQR:', error);
     res.status(500).json({ 
       message: 'Error processing rental request', 
       error: error.message 
@@ -554,7 +554,7 @@ export const deleteCycle = async (req, res) => {
 // Get all active cycles
 export const getAllCycles = async (req, res) => {
   try {
-    console.log('🔍 Fetching all active cycles');
+    console.log('Fetching all active cycles');
 
     // Get only active and available cycles with coordinates
     const cycles = await Cycle.find({
@@ -566,7 +566,7 @@ export const getAllCycles = async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(200); // Limit for performance
 
-    console.log(`✅ Found ${cycles.length} active cycles`);
+    console.log(`Found ${cycles.length} active cycles`);
 
     // Transform the response to ensure consistent structure
     const transformedCycles = cycles.map(cycle => ({
@@ -605,7 +605,7 @@ export const getAllCycles = async (req, res) => {
 // Debug endpoint to check cycles in database
 export const debugCycles = async (req, res) => {
   try {
-    console.log('🔍 Debug: Checking all cycles in database');
+    console.log('Debug: Checking all cycles in database');
 
     const allCycles = await Cycle.find({})
       .select('_id owner brand model isActive isRented coordinates location')
@@ -620,9 +620,9 @@ export const debugCycles = async (req, res) => {
       coordinates: { $exists: true, $ne: null }
     }).select('_id brand model coordinates');
 
-    console.log(`📊 Total cycles: ${allCycles.length}`);
-    console.log(`📊 Active cycles: ${activeCycles.length}`);
-    console.log(`📊 Cycles with coordinates: ${cyclesWithCoordinates.length}`);
+    console.log(`Total cycles: ${allCycles.length}`);
+    console.log(`Active cycles: ${activeCycles.length}`);
+    console.log(`Cycles with coordinates: ${cyclesWithCoordinates.length}`);
 
     res.json({
       total: allCycles.length,
@@ -642,7 +642,7 @@ export const debugCycles = async (req, res) => {
       cyclesWithCoordinates: cyclesWithCoordinates
     });
   } catch (error) {
-    console.error('❌ Debug error:', error);
+    console.error('Debug error:', error);
     res.status(500).json({
       message: 'Debug endpoint error',
       error: error.message
@@ -705,11 +705,11 @@ export const testRentalEndpoint = async (req, res) => {
 // Initialize existing cycles in Firebase Realtime Database
 export const initializeCyclesInFirebase = async (req, res) => {
   try {
-    console.log('🔧 Initializing all existing cycles in Firebase Realtime Database...');
+    console.log('Initializing all existing cycles in Firebase Realtime Database...');
     
     // Get all cycles from database
     const cycles = await Cycle.find({});
-    console.log(`📋 Found ${cycles.length} cycles to initialize`);
+    console.log(`Found ${cycles.length} cycles to initialize`);
     
     const results = [];
     let successCount = 0;
@@ -736,7 +736,7 @@ export const initializeCyclesInFirebase = async (req, res) => {
         successCount++;
         
       } catch (error) {
-        console.error(`❌ Error initializing cycle ${cycle._id}:`, error);
+        console.error(`Error initializing cycle ${cycle._id}:`, error);
         results.push({
           cycleId: cycle._id.toString(),
           brand: cycle.brand,
@@ -748,7 +748,7 @@ export const initializeCyclesInFirebase = async (req, res) => {
       }
     }
     
-    console.log(`✅ Firebase initialization complete: ${successCount} successful, ${errorCount} failed`);
+    console.log(`Firebase initialization complete: ${successCount} successful, ${errorCount} failed`);
     
     res.json({
       message: 'Cycles initialization in Firebase completed',
@@ -761,7 +761,7 @@ export const initializeCyclesInFirebase = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error in initializeCyclesInFirebase:', error);
+    console.error('Error in initializeCyclesInFirebase:', error);
     res.status(500).json({
       message: 'Error initializing cycles in Firebase',
       error: error.message
