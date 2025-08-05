@@ -21,9 +21,9 @@ class FirebaseService {
 
       console.log(`🔒 Firebase: Updating lock status for cycle ${cycleId} to ${isLocked}`);
       
-      // Update the cycle's lock status in Firebase Realtime Database
+      // Update ONLY the lock status in Firebase (minimal data)
       const cycleRef = db.ref(`cycles/${cycleId}`);
-      await cycleRef.update({
+      await cycleRef.set({
         isLocked: isLocked,
         lastUpdated: new Date().toISOString(),
         timestamp: Date.now()
@@ -106,22 +106,21 @@ class FirebaseService {
         };
       }
 
-      console.log(`🔧 Firebase: Initializing cycle ${cycleId} in Realtime Database`);
+      console.log(`🔧 Firebase: Initializing lock status for cycle ${cycleId}`);
       
       const cycleRef = db.ref(`cycles/${cycleId}`);
       await cycleRef.set({
         isLocked: 0, // Default to unlocked
         lastUpdated: new Date().toISOString(),
-        timestamp: Date.now(),
-        ...cycleData
+        timestamp: Date.now()
       });
 
-      console.log(`✅ Firebase: Successfully initialized cycle ${cycleId}`);
+      console.log(`✅ Firebase: Successfully initialized lock status for cycle ${cycleId}`);
       
       return {
         success: true,
         cycleId: cycleId,
-        message: 'Cycle initialized in Firebase Realtime Database'
+        message: 'Cycle lock status initialized in Firebase'
       };
     } catch (error) {
       console.error(`❌ Firebase: Error initializing cycle ${cycleId}:`, error);
