@@ -1,6 +1,7 @@
 import Cycle from '../models/Cycle.js';
 import User from '../models/User.js';
 import Rental from '../models/Rental.js';
+import FirebaseService from '../services/firebaseService.js';
 
 // Get dashboard statistics
 export const getDashboardStats = async (req, res) => {
@@ -76,9 +77,27 @@ export const addCycle = async (req, res) => {
 
     await cycle.save();
 
+    // 🔧 Initialize cycle in Firebase Realtime Database
+    console.log('🔧 Initializing cycle in Firebase Realtime Database...');
+    try {
+      await FirebaseService.initializeCycle(cycle._id.toString(), {
+        brand: cycle.brand,
+        model: cycle.model,
+        owner: cycle.owner,
+        location: cycle.location,
+        hourlyRate: cycle.hourlyRate
+      });
+      console.log('✅ Firebase: Cycle initialized successfully');
+    } catch (firebaseError) {
+      console.error('❌ Firebase: Error initializing cycle:', firebaseError);
+      // Don't fail the cycle creation if Firebase fails
+      // The cycle is still created in the database
+    }
+
     res.status(201).json({
       message: 'Cycle added successfully',
       cycle,
+      firebaseStatus: 'initialized'
     });
   } catch (error) {
     res.status(500).json({
@@ -261,8 +280,20 @@ export const deleteCycle = async (req, res) => {
 
     await cycle.deleteOne();
 
+    // 🗑️ Remove cycle from Firebase Realtime Database
+    console.log('🗑️ Removing cycle from Firebase Realtime Database...');
+    try {
+      await FirebaseService.deleteCycle(cycleId);
+      console.log('✅ Firebase: Cycle removed successfully');
+    } catch (firebaseError) {
+      console.error('❌ Firebase: Error removing cycle:', firebaseError);
+      // Don't fail the deletion if Firebase fails
+      // The cycle is still deleted from the database
+    }
+
     res.json({
       message: 'Cycle deleted successfully',
+      firebaseStatus: 'removed'
     });
   } catch (error) {
     res.status(500).json({

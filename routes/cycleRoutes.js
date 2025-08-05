@@ -11,6 +11,7 @@ import {
   debugCycles,
   rentCycleByQR,
   testRentalEndpoint,
+  initializeCyclesInFirebase,
 } from '../controllers/cycleController.js';
 
 const router = Router();
@@ -30,5 +31,6 @@ router.patch('/:id', updateCycle); // Update cycle details
 router.delete('/:id', deleteCycle); // Delete cycle
 router.post('/rent-by-qr', rentCycleByQR); // Rent cycle by QR code
 router.post('/test-rental', testRentalEndpoint); // Test endpoint for debugging
+router.post('/initialize-firebase', initializeCyclesInFirebase); // Initialize cycles in Firebase
 
 export default router;

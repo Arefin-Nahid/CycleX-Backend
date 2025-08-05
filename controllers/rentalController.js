@@ -1,5 +1,6 @@
 import Rental from '../models/Rental.js';
 import Cycle from '../models/Cycle.js';
+import FirebaseService from '../services/firebaseService.js';
 
 // Get user's rentals
 export const getMyRentals = async (req, res) => {
@@ -239,6 +240,17 @@ export const completeRental = async (req, res) => {
     if (cycle) {
       cycle.isRented = false;
       await cycle.save();
+      
+      // 🔓 Unlock the cycle in Firebase Realtime Database (isLocked = 0)
+      console.log('🔓 Unlocking cycle in Firebase Realtime Database...');
+      try {
+        await FirebaseService.updateCycleLockStatus(cycle._id.toString(), 0);
+        console.log('✅ Firebase: Cycle unlocked successfully');
+      } catch (firebaseError) {
+        console.error('❌ Firebase: Error unlocking cycle:', firebaseError);
+        // Don't fail the entire completion process if Firebase fails
+        // The rental completion is still valid, just the hardware unlock might not work
+      }
     }
 
     res.json({
@@ -402,6 +414,17 @@ export const cancelRental = async (req, res) => {
     if (cycle) {
       cycle.isRented = false;
       await cycle.save();
+      
+      // 🔓 Unlock the cycle in Firebase Realtime Database (isLocked = 0)
+      console.log('🔓 Unlocking cycle in Firebase Realtime Database (cancelled rental)...');
+      try {
+        await FirebaseService.updateCycleLockStatus(cycle._id.toString(), 0);
+        console.log('✅ Firebase: Cycle unlocked successfully (cancelled rental)');
+      } catch (firebaseError) {
+        console.error('❌ Firebase: Error unlocking cycle (cancelled rental):', firebaseError);
+        // Don't fail the entire cancellation process if Firebase fails
+        // The rental cancellation is still valid, just the hardware unlock might not work
+      }
     }
 
     res.json({

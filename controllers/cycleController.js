@@ -1,6 +1,7 @@
 import Cycle from '../models/Cycle.js';
 import Rental from '../models/Rental.js';
 import mongoose from 'mongoose';
+import FirebaseService from '../services/firebaseService.js';
 
 // Get nearby cycles with location-based filtering
 export const getNearbyCycles = async (req, res) => {
@@ -272,7 +273,7 @@ export const getCycleById = async (req, res) => {
   }
 };
 
-// Enhanced rentCycleByQR with atomic operations and race condition prevention
+// Enhanced rentCycleByQR with atomic operations, race condition prevention, and Firebase integration
 export const rentCycleByQR = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -405,6 +406,18 @@ export const rentCycleByQR = async (req, res) => {
 
     console.log('🔍 Saving rental record...');
     await rental.save({ session });
+
+    // 🔒 Update Firebase Realtime Database - Lock the cycle (isLocked = 1)
+    console.log('🔒 Updating Firebase Realtime Database - Locking cycle...');
+    try {
+      await FirebaseService.updateCycleLockStatus(cycleId, 1);
+      console.log('✅ Firebase: Cycle locked successfully');
+    } catch (firebaseError) {
+      console.error('❌ Firebase: Error locking cycle:', firebaseError);
+      // Don't fail the entire rental process if Firebase fails
+      // The rental is still valid, just the hardware lock might not work
+    }
+
     await session.commitTransaction();
 
     console.log(`✅ Rental started successfully: Cycle ${cycleId} rented by user ${userId}`);
@@ -425,7 +438,8 @@ export const rentCycleByQR = async (req, res) => {
         condition: cycle.condition,
         hourlyRate: cycle.hourlyRate,
         location: cycle.location,
-      }
+      },
+      firebaseStatus: 'locked' // Indicate that the cycle is now locked
     });
 
   } catch (error) {
@@ -683,6 +697,73 @@ export const testRentalEndpoint = async (req, res) => {
     console.error('Test endpoint error:', error);
     res.status(500).json({
       message: 'Test endpoint error',
+      error: error.message
+    });
+  }
+};
+
+// Initialize existing cycles in Firebase Realtime Database
+export const initializeCyclesInFirebase = async (req, res) => {
+  try {
+    console.log('🔧 Initializing all existing cycles in Firebase Realtime Database...');
+    
+    // Get all cycles from database
+    const cycles = await Cycle.find({});
+    console.log(`📋 Found ${cycles.length} cycles to initialize`);
+    
+    const results = [];
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const cycle of cycles) {
+      try {
+        await FirebaseService.initializeCycle(cycle._id.toString(), {
+          brand: cycle.brand,
+          model: cycle.model,
+          owner: cycle.owner,
+          location: cycle.location,
+          hourlyRate: cycle.hourlyRate,
+          isRented: cycle.isRented,
+          isActive: cycle.isActive
+        });
+        
+        results.push({
+          cycleId: cycle._id.toString(),
+          brand: cycle.brand,
+          model: cycle.model,
+          status: 'success'
+        });
+        successCount++;
+        
+      } catch (error) {
+        console.error(`❌ Error initializing cycle ${cycle._id}:`, error);
+        results.push({
+          cycleId: cycle._id.toString(),
+          brand: cycle.brand,
+          model: cycle.model,
+          status: 'error',
+          error: error.message
+        });
+        errorCount++;
+      }
+    }
+    
+    console.log(`✅ Firebase initialization complete: ${successCount} successful, ${errorCount} failed`);
+    
+    res.json({
+      message: 'Cycles initialization in Firebase completed',
+      summary: {
+        total: cycles.length,
+        successful: successCount,
+        failed: errorCount
+      },
+      results: results
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in initializeCyclesInFirebase:', error);
+    res.status(500).json({
+      message: 'Error initializing cycles in Firebase',
       error: error.message
     });
   }

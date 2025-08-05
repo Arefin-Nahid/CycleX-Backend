@@ -20,6 +20,7 @@ try {
         auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL, 
         client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
       }),
+      databaseURL: process.env.FIREBASE_DATABASE_URL, // Add Realtime Database URL
     });
   }
 } catch (error) {
@@ -27,4 +28,16 @@ try {
   process.exit(1);
 }
 
+// Get Realtime Database reference
+let db;
+try {
+  db = admin.database();
+  console.log('✅ Firebase Realtime Database initialized successfully');
+} catch (error) {
+  console.warn('⚠️ Firebase Realtime Database not configured. Please set FIREBASE_DATABASE_URL in your .env file');
+  console.warn('⚠️ Firebase features will be disabled until configured');
+  db = null;
+}
+
 export default admin;
+export { db };
