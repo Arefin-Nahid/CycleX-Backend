@@ -209,12 +209,19 @@ export const sslSuccess = async (req, res) => {
   try {
     const { tran_id, val_id, amount, currency, bank_tran_id, store_amount, card_type, card_no, card_issuer, card_brand, card_sub_brand, card_issuer_country, card_issuer_country_code, store_id, verify_sign, verify_key, base_fair, value_a, value_b, value_c, value_d } = req.body;
 
-    console.log('SSL Success callback received:', { tran_id, val_id, amount });
+    console.log('🔵 SSL Success callback received:', { 
+      tran_id, 
+      val_id, 
+      amount,
+      bank_tran_id,
+      card_type,
+      store_id 
+    });
 
     // Find payment by transaction ID
     const payment = await Payment.findOne({ transactionId: tran_id });
     if (!payment) {
-      console.error('Payment not found for transaction:', tran_id);
+      console.error('❌ Payment not found for transaction:', tran_id);
       // Return simple HTML response instead of trying to serve a file
       return res.send(`
         <!DOCTYPE html>
@@ -240,6 +247,13 @@ export const sslSuccess = async (req, res) => {
       `);
     }
 
+    console.log('✅ Payment found:', {
+      paymentId: payment._id,
+      status: payment.status,
+      amount: payment.amount,
+      transactionId: payment.transactionId
+    });
+
     // Update payment's updatedAt to prevent timeout
     payment.updatedAt = new Date();
     await payment.save();
@@ -250,6 +264,12 @@ export const sslSuccess = async (req, res) => {
       store_id: SSLCOMMERZ_CONFIG.store_id,
       store_passwd: SSLCOMMERZ_CONFIG.store_password,
     };
+
+    console.log('🔍 Sending verification request to SSLCommerz:', {
+      val_id: val_id,
+      store_id: SSLCOMMERZ_CONFIG.store_id,
+      verificationUrl: `${SSLCOMMERZ_CONFIG.base_url}/validator/api/validationserverAPI.php`
+    });
 
     const verifyResponse = await axios.post(
       `${SSLCOMMERZ_CONFIG.base_url}/validator/api/validationserverAPI.php`,
@@ -262,9 +282,15 @@ export const sslSuccess = async (req, res) => {
       }
     );
 
-    console.log('SSL verification response:', verifyResponse.data);
+    console.log('📥 SSL verification response:', {
+      status: verifyResponse.data.status,
+      data: verifyResponse.data,
+      statusCode: verifyResponse.status
+    });
 
     if (verifyResponse.data.status === 'VALID' || verifyResponse.data.status === 'VALIDATED') {
+      console.log('✅ Payment verification successful, updating status to completed');
+      
       // Update payment status
       payment.status = 'completed';
       payment.gatewayResponse = {
@@ -277,17 +303,23 @@ export const sslSuccess = async (req, res) => {
         cardBrand: card_brand,
         verified: true,
         verifiedAt: new Date(),
+        timestamp: new Date(),
       };
       await payment.save();
+
+      console.log('✅ Payment status updated to completed');
 
       // Update rental payment status
       const rental = await Rental.findById(payment.rental);
       if (rental) {
         rental.paymentStatus = 'paid';
         await rental.save();
+        console.log('✅ Rental payment status updated to paid');
+      } else {
+        console.log('⚠️ Rental not found for payment:', payment.rental);
       }
 
-      console.log('Payment verified and completed successfully');
+      console.log('🎉 Payment verified and completed successfully');
 
       // Return simple HTML response instead of trying to serve a file
       res.send(`
@@ -313,7 +345,24 @@ export const sslSuccess = async (req, res) => {
         </html>
       `);
     } else {
-      console.error('Payment verification failed:', verifyResponse.data);
+      console.error('❌ Payment verification failed:', {
+        expectedStatus: ['VALID', 'VALIDATED'],
+        actualStatus: verifyResponse.data.status,
+        responseData: verifyResponse.data
+      });
+      
+      // Update payment status to failed
+      payment.status = 'failed';
+      payment.gatewayResponse = {
+        ...payment.gatewayResponse,
+        errorMessage: `Payment verification failed: ${verifyResponse.data.status}`,
+        failedAt: new Date(),
+        verificationResponse: verifyResponse.data
+      };
+      await payment.save();
+      
+      console.log('❌ Payment marked as failed due to verification failure');
+      
       // Return simple HTML response for failed payment
       res.send(`
         <!DOCTYPE html>
@@ -329,8 +378,9 @@ export const sslSuccess = async (req, res) => {
         <body>
           <div class="container">
             <div class="error">✗ Payment Failed</div>
-            <p>Your payment could not be processed.</p>
+            <p>Your payment could not be verified.</p>
             <p>Transaction ID: ${tran_id}</p>
+            <p>Error: ${verifyResponse.data.status}</p>
             <script>setTimeout(() => window.close(), 3000);</script>
           </div>
         </body>
@@ -339,7 +389,32 @@ export const sslSuccess = async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error in SSL success callback:', error);
+    console.error('❌ Error in SSL success callback:', {
+      error: error.message,
+      stack: error.stack,
+      requestBody: req.body
+    });
+    
+    // Try to find and update payment status to failed
+    try {
+      const { tran_id } = req.body;
+      if (tran_id) {
+        const payment = await Payment.findOne({ transactionId: tran_id });
+        if (payment) {
+          payment.status = 'failed';
+          payment.gatewayResponse = {
+            ...payment.gatewayResponse,
+            errorMessage: `Payment processing error: ${error.message}`,
+            failedAt: new Date(),
+          };
+          await payment.save();
+          console.log('❌ Payment marked as failed due to processing error');
+        }
+      }
+    } catch (updateError) {
+      console.error('❌ Error updating payment status:', updateError);
+    }
+    
     // Return simple HTML response for error
     res.send(`
       <!DOCTYPE html>

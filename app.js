@@ -13,7 +13,6 @@ import cycleRoutes from './routes/cycleRoutes.js';
 import rentalRoutes from './routes/rentalRoutes.js';
 import qrRoutes from './routes/qrRoutes.js';
 import sslRoutes from './routes/sslRoutes.js';
-import paymentTimeoutRoutes from './routes/paymentTimeoutRoutes.js';
 
 // Import Firebase admin
 import './config/firebase.js';
@@ -104,7 +103,6 @@ app.use('/api/cycles', cycleRoutes);
 app.use('/api/rentals', rentalRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/payments/ssl', sslRoutes);
-app.use('/api/payment-timeouts', paymentTimeoutRoutes);
 
 // 404 handler
 app.use((req, res) => {
