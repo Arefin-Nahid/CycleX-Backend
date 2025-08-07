@@ -648,6 +648,73 @@ export const sslIPN = async (req, res) => {
   }
 };
 
+// Manual payment status update function
+export const updatePaymentStatus = async (req, res) => {
+  try {
+    const { transactionId, status, valId, bankTranId } = req.body;
+    const userId = req.user.uid;
+
+    console.log(`🔄 Manual payment status update requested:`, {
+      transactionId,
+      status,
+      userId
+    });
+
+    const payment = await Payment.findOne({ 
+      transactionId: transactionId,
+      user: userId 
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        message: 'Payment not found',
+        error: 'PAYMENT_NOT_FOUND'
+      });
+    }
+
+    // Update payment status
+    payment.status = status;
+    payment.gatewayResponse = {
+      ...payment.gatewayResponse,
+      valId: valId,
+      bankTranId: bankTranId,
+      verified: status === 'completed',
+      verifiedAt: new Date(),
+      manuallyUpdated: true,
+      timestamp: new Date(),
+    };
+    await payment.save();
+
+    // Update rental payment status if payment is completed
+    if (status === 'completed') {
+      const rental = await Rental.findById(payment.rental);
+      if (rental) {
+        rental.paymentStatus = 'paid';
+        await rental.save();
+        console.log('✅ Rental payment status updated to paid');
+      }
+    }
+
+    console.log(`✅ Payment status updated to: ${status}`);
+
+    res.json({
+      message: 'Payment status updated successfully',
+      payment: {
+        _id: payment._id,
+        status: payment.status,
+        transactionId: payment.transactionId,
+        amount: payment.amount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating payment status:', error);
+    res.status(500).json({
+      message: 'Failed to update payment status',
+      error: error.message
+    });
+  }
+};
 
 
 // Get SSL payment status
