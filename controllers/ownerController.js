@@ -324,3 +324,54 @@ export const getOwnerProfile = async (req, res) => {
     });
   }
 };
+
+// Get owner's unpaid rentals
+export const getOwnerUnpaidRentals = async (req, res) => {
+  try {
+    const userId = req.user.uid;
+    const { page = 1, limit = 20, status = 'all' } = req.query;
+    const skip = (page - 1) * limit;
+    
+    let query = {
+      owner: userId,
+      status: 'completed',
+      paymentStatus: { $in: ['pending', 'failed'] }
+    };
+    
+    if (status === 'pending') {
+      query.paymentStatus = 'pending';
+    } else if (status === 'failed') {
+      query.paymentStatus = 'failed';
+    }
+    
+    const unpaidRentals = await Rental.find(query)
+      .populate('cycle')
+      .populate('renter', 'displayName email')
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await Rental.countDocuments(query);
+    
+    // Calculate total amount for unpaid rentals
+    const totalAmount = unpaidRentals.reduce((sum, rental) => sum + rental.totalCost, 0);
+    
+    res.json({
+      unpaidRentals,
+      totalAmount,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching owner unpaid rentals:', error);
+    res.status(500).json({
+      message: 'Error fetching unpaid rentals',
+      error: error.message
+    });
+  }
+};

@@ -8,7 +8,8 @@ import {
   updateCycle,
   deleteCycle,
   getOwnerProfile,
-  getRentalHistory
+  getRentalHistory,
+  getOwnerUnpaidRentals
 } from '../controllers/ownerController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
@@ -31,5 +32,8 @@ router.patch('/cycles/:cycleId/toggle-status', toggleCycleStatus);
 // Activities & History
 router.get('/activities', getRecentActivities);
 router.get('/rental-history', getRentalHistory);
+
+// Payment Management
+router.get('/unpaid-rentals', getOwnerUnpaidRentals);
 
 export default router; 
