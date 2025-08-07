@@ -307,7 +307,7 @@ export const deleteCycle = async (req, res) => {
 export const getOwnerProfile = async (req, res) => {
   try {
     const userId = req.user.uid;
-    const user = await User.findOne({ uid: userId });
+    const user = await User.findOne({ firebaseId: userId });
 
     if (!user) {
       return res.status(404).json({
