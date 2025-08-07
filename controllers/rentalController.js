@@ -1,6 +1,12 @@
 import Rental from '../models/Rental.js';
 import Cycle from '../models/Cycle.js';
 import FirebaseService from '../services/firebaseService.js';
+import { 
+  getCurrentTimeInBangladesh, 
+  convertToBangladeshTime, 
+  formatBangladeshTime,
+  getTimeDifference 
+} from '../utils/timezone.js';
 
 // Get user's rentals
 export const getMyRentals = async (req, res) => {
@@ -9,7 +15,16 @@ export const getMyRentals = async (req, res) => {
       .populate('cycle')
       .sort({ createdAt: -1 });
 
-    res.json({ rentals });
+    // Convert timestamps to Bangladesh timezone for display
+    const formattedRentals = rentals.map(rental => ({
+      ...rental.toObject(),
+      startTime: formatBangladeshTime(rental.startTime),
+      endTime: rental.endTime ? formatBangladeshTime(rental.endTime) : null,
+      createdAt: formatBangladeshTime(rental.createdAt),
+      updatedAt: formatBangladeshTime(rental.updatedAt),
+    }));
+
+    res.json({ rentals: formattedRentals });
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching rentals',
@@ -38,7 +53,16 @@ export const getRentalById = async (req, res) => {
       });
     }
 
-    res.json({ rental });
+    // Convert timestamps to Bangladesh timezone for display
+    const formattedRental = {
+      ...rental.toObject(),
+      startTime: formatBangladeshTime(rental.startTime),
+      endTime: rental.endTime ? formatBangladeshTime(rental.endTime) : null,
+      createdAt: formatBangladeshTime(rental.createdAt),
+      updatedAt: formatBangladeshTime(rental.updatedAt),
+    };
+
+    res.json({ rental: formattedRental });
   } catch (error) {
     res.status(500).json({
       message: 'Error fetching rental',
@@ -113,72 +137,68 @@ export const rentCycle = async (req, res) => {
       });
     }
 
-    // Check if user is trying to rent their own cycle
-    if (cycle.owner === userId) {
-      return res.status(400).json({ 
-        message: 'You cannot rent your own cycle', 
-        error: 'OWNER_RENTAL_NOT_ALLOWED' 
-      });
-    }
-
-    // Check if user has an active rental
-    const activeRental = await Rental.findOne({
+    // Check if user already has an active rental
+    const existingRental = await Rental.findOne({
       renter: userId,
-      status: 'active'
+      status: 'active',
     });
 
-    if (activeRental) {
-      return res.status(400).json({ 
-        message: 'You already have an active rental', 
+    if (existingRental) {
+      return res.status(400).json({
+        message: 'You already have an active rental. Please complete or cancel it first.',
         error: 'ACTIVE_RENTAL_EXISTS',
         existingRental: {
-          _id: activeRental._id,
-          cycle: activeRental.cycle,
-          startTime: activeRental.startTime,
+          _id: existingRental._id,
+          startTime: formatBangladeshTime(existingRental.startTime),
+          status: existingRental.status,
         }
       });
     }
 
-    // Create the rental
-    const startTime = new Date();
+    // Get current time in Bangladesh timezone
+    const currentTime = getCurrentTimeInBangladesh();
+    const endTime = currentTime.clone().add(24, 'hours'); // Default 24 hours
+
+    // Create rental with Bangladesh timezone
     const rental = new Rental({
       cycle: cycleId,
       renter: userId,
       owner: cycle.owner,
-      startTime: startTime,
-      status: 'active',
+      startTime: currentTime.toDate(),
+      endTime: endTime.toDate(),
       duration: 0, // Will be calculated when rental ends
+      distance: 0, // Will be updated when rental ends
       totalCost: 0, // Will be calculated when rental ends
+      status: 'active',
+      paymentStatus: 'pending',
     });
 
     // Update cycle status
     cycle.isRented = true;
-    
-    // Save both documents
-    await Promise.all([cycle.save(), rental.save()]);
+    await cycle.save();
 
-    // Populate cycle details for response
-    await rental.populate('cycle');
+    // Save rental
+    await rental.save();
 
-    res.status(201).json({ 
-      message: 'Cycle rented successfully',
-      rental,
-      cycle: {
-        _id: cycle._id,
-        brand: cycle.brand,
-        model: cycle.model,
-        condition: cycle.condition,
-        hourlyRate: cycle.hourlyRate,
-        location: cycle.location,
-        isRented: cycle.isRented,
-        isActive: cycle.isActive,
-      }
+    // Format response with Bangladesh timezone
+    const formattedRental = {
+      ...rental.toObject(),
+      startTime: formatBangladeshTime(rental.startTime),
+      endTime: formatBangladeshTime(rental.endTime),
+      createdAt: formatBangladeshTime(rental.createdAt),
+      updatedAt: formatBangladeshTime(rental.updatedAt),
+    };
+
+    res.status(201).json({
+      message: 'Rental created successfully',
+      rental: formattedRental,
+      timezone: 'Asia/Dhaka (GMT+6)',
     });
   } catch (error) {
-    console.error('Error in rentCycle:', error);
-    res.status(500).json({ 
-      message: 'Error renting cycle', 
-      error: error.message 
+    console.error('Error creating rental:', error);
+    res.status(500).json({
+      message: 'Error creating rental',
+      error: error.message,
     });
   }
 };

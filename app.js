@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import moment from 'moment-timezone';
 
 // Import routes
 import userRoutes from './routes/userRoutes.js';
@@ -19,11 +20,21 @@ import './config/firebase.js';
 
 dotenv.config();
 
+// Set default timezone to Bangladesh (GMT+6)
+moment.tz.setDefault('Asia/Dhaka');
+
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(json());
+
+// Add timezone info to response headers
+app.use((req, res, next) => {
+  res.setHeader('X-Timezone', 'Asia/Dhaka');
+  res.setHeader('X-Timezone-Offset', '+06:00');
+  next();
+});
 
 // Static file serving with error handling
 const __filename = fileURLToPath(import.meta.url);
@@ -73,6 +84,8 @@ app.get('/', (req, res) => {
     message: 'Welcome to CycleX API!',
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
+    timezone: 'Asia/Dhaka (GMT+6)',
+    currentTime: moment().format('YYYY-MM-DD HH:mm:ss'),
     contact: { email: 'nahid7ar@gmail.com', phone: '+880-1727-892717' },
   });
 });
@@ -85,6 +98,8 @@ app.get('/health', async (req, res) => {
       status: 'OK',
       database: dbStatus,
       uptime: process.uptime(),
+      timezone: 'Asia/Dhaka (GMT+6)',
+      currentTime: moment().format('YYYY-MM-DD HH:mm:ss'),
     });
   } catch (err) {
     res.status(500).json({

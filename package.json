@@ -17,7 +17,8 @@
     "express": "^4.17.1",
     "firebase-admin": "^13.0.2",
     "mongoose": "^6.0.12",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "moment-timezone": "^0.5.45"
   },
   "devDependencies": {
     "jest": "^29.7.0",
