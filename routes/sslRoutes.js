@@ -8,6 +8,7 @@ import {
   sslIPN,
   getSSLPaymentStatus,
   updatePaymentStatus,
+  updatePaymentStatusFromFrontend,
 } from '../controllers/sslCommerzController.js';
 
 const router = express.Router();
@@ -16,6 +17,7 @@ const router = express.Router();
 router.post('/create-session', authMiddleware, createSSLSession);
 router.get('/status/:transactionId', authMiddleware, getSSLPaymentStatus);
 router.post('/update-status', authMiddleware, updatePaymentStatus);
+router.post('/frontend-update', authMiddleware, updatePaymentStatusFromFrontend);
 
 // SSLCommerz callback routes (no auth required as they are called by SSLCommerz)
 router.post('/success', sslSuccess);
