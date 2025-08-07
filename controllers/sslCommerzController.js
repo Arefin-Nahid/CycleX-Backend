@@ -240,6 +240,10 @@ export const sslSuccess = async (req, res) => {
       `);
     }
 
+    // Update payment's updatedAt to prevent timeout
+    payment.updatedAt = new Date();
+    await payment.save();
+
     // Verify the payment with SSLCommerz
     const verificationData = {
       val_id: val_id,

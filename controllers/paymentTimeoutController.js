@@ -3,7 +3,7 @@ import Payment from '../models/Payment.js';
 import User from '../models/User.js';
 
 // Payment timeout configuration (in minutes)
-const PAYMENT_TIMEOUT_MINUTES = 30; // 30 minutes to complete payment
+const PAYMENT_TIMEOUT_MINUTES = 60; // Increased to 60 minutes to give more time
 const GRACE_PERIOD_MINUTES = 15; // 15 minutes grace period after timeout
 
 // Check for unpaid rentals and handle timeouts
@@ -15,6 +15,7 @@ export const checkPaymentTimeouts = async () => {
     const timeoutThreshold = new Date(now.getTime() - (PAYMENT_TIMEOUT_MINUTES * 60 * 1000));
     
     // Find completed rentals with pending payments that have exceeded timeout
+    // Only timeout payments that don't have recent activity
     const unpaidRentals = await Rental.find({
       status: 'completed',
       paymentStatus: 'pending',
@@ -24,7 +25,19 @@ export const checkPaymentTimeouts = async () => {
     console.log(`Found ${unpaidRentals.length} unpaid rentals exceeding timeout`);
     
     for (const rental of unpaidRentals) {
-      await handleUnpaidRental(rental);
+      // Additional check: Only timeout if there's no recent payment activity
+      const recentPayment = await Payment.findOne({
+        rental: rental._id,
+        status: 'pending',
+        updatedAt: { $gte: timeoutThreshold }
+      });
+      
+      // Only timeout if there's no recent payment activity
+      if (!recentPayment) {
+        await handleUnpaidRental(rental);
+      } else {
+        console.log(`Skipping timeout for rental ${rental._id} - has recent payment activity`);
+      }
     }
     
     return unpaidRentals.length;
@@ -114,16 +127,40 @@ export const getUnpaidRentals = async (req, res) => {
     
     const unpaidRentals = await Rental.find(query)
       .populate('cycle')
-      .populate('owner', 'displayName email')
-      .populate('renter', 'displayName email')
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
     
+    // Get owner and renter information separately since they are Firebase UIDs (strings)
+    const ownerUids = [...new Set(unpaidRentals.map(rental => rental.owner))];
+    const renterUids = [...new Set(unpaidRentals.map(rental => rental.renter))];
+    
+    const owners = await User.find({ uid: { $in: ownerUids } }, 'uid name email');
+    const renters = await User.find({ uid: { $in: renterUids } }, 'uid name email');
+    
+    // Create maps for quick lookup
+    const ownerMap = owners.reduce((map, owner) => {
+      map[owner.uid] = owner;
+      return map;
+    }, {});
+    
+    const renterMap = renters.reduce((map, renter) => {
+      map[renter.uid] = renter;
+      return map;
+    }, {});
+    
+    // Add owner and renter information to rentals
+    const rentalsWithUserInfo = unpaidRentals.map(rental => {
+      const rentalObj = rental.toObject();
+      rentalObj.ownerInfo = ownerMap[rental.owner] || null;
+      rentalObj.renterInfo = renterMap[rental.renter] || null;
+      return rentalObj;
+    });
+    
     const total = await Rental.countDocuments(query);
     
     res.json({
-      unpaidRentals,
+      unpaidRentals: rentalsWithUserInfo,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(total / limit),

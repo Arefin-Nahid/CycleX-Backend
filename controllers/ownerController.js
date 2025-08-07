@@ -346,10 +346,26 @@ export const getOwnerUnpaidRentals = async (req, res) => {
     
     const unpaidRentals = await Rental.find(query)
       .populate('cycle')
-      .populate('renter', 'displayName email')
       .sort({ updatedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
+    
+    // Get renter information separately since renter field is Firebase UID (string)
+    const renterUids = [...new Set(unpaidRentals.map(rental => rental.renter))];
+    const renters = await User.find({ uid: { $in: renterUids } }, 'uid name email');
+    
+    // Create a map for quick lookup
+    const renterMap = renters.reduce((map, renter) => {
+      map[renter.uid] = renter;
+      return map;
+    }, {});
+    
+    // Add renter information to rentals
+    const rentalsWithRenterInfo = unpaidRentals.map(rental => {
+      const rentalObj = rental.toObject();
+      rentalObj.renterInfo = renterMap[rental.renter] || null;
+      return rentalObj;
+    });
     
     const total = await Rental.countDocuments(query);
     
@@ -357,7 +373,7 @@ export const getOwnerUnpaidRentals = async (req, res) => {
     const totalAmount = unpaidRentals.reduce((sum, rental) => sum + rental.totalCost, 0);
     
     res.json({
-      unpaidRentals,
+      unpaidRentals: rentalsWithRenterInfo,
       totalAmount,
       pagination: {
         currentPage: parseInt(page),
