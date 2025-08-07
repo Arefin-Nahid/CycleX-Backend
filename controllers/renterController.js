@@ -281,7 +281,7 @@ export const cancelRental = async (req, res) => {
 export const getRenterProfile = async (req, res) => {
   try {
     const userId = req.user.uid;
-    const user = await User.findOne({ firebaseId: userId });
+    const user = await User.findOne({ uid: userId });
 
     if (!user) {
       return res.status(404).json({
